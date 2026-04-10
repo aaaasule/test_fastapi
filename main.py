@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.fid.api import router as fid_router
-from app.hdc.api import router as hdc_router
+# from app.hdc.api import router as hdc_router
 
 app = FastAPI(title="HDC相关接口后台", version="1.0.0", max_body_size=400 * 1024 * 1024)
 
@@ -24,7 +24,7 @@ async def root():
 
 
 app.include_router(fid_router)
-app.include_router(hdc_router)
+# app.include_router(hdc_router)
 
 if __name__ == "__main__":
     import uvicorn
