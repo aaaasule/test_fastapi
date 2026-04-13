@@ -1,0 +1,31 @@
+  File "/data/merge_interface_v2/app/fid/api_util.py", line 585, in _fid_check
+    current_equipment_list = fid_parse_dxf(file_path, filename=filename)
+  File "/data/merge_interface_v2/app/fid/fid_parser.py", line 102, in fid_parse_dxf
+    doc = ezdxf.readfile(dxf_path)
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/filemanagement.py", line 154, in readfile
+    doc = read(fp)  # type: ignore
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/filemanagement.py", line 95, in read
+    return Drawing.read(stream)
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/document.py", line 337, in read
+    return cls.load(tag_loader)
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/document.py", line 352, in load
+    doc._load(tag_loader)
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/document.py", line 368, in _load
+    self._load_section_dict(sections)
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/document.py", line 403, in _load_section_dict
+    self.tables = TablesSection(self, sections.get("TABLES", None))  # type: ignore
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/sections/tables.py", line 56, in __init__
+    self._load(entities)
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/sections/tables.py", line 95, in _load
+    self._load_table(table_name, table_records)  # type: ignore
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/sections/tables.py", line 122, in _load_table
+    table.load(self.doc, iter(table_entities))
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/sections/table.py", line 66, in load
+    self._append(cast(T, table_entry))
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/sections/table.py", line 246, in _append
+    self.entries[self.key(entry.dxf.name)] = entry
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/sections/table.py", line 97, in key
+    return validator.make_table_key(name)
+  File "/home/devadmin/.local/lib/python3.10/site-packages/ezdxf/lldxf/validator.py", line 386, in make_table_key
+    raise DXFTypeError("name has to be a string.")
+ezdxf.lldxf.const.DXFTypeError: name has to be a string.
