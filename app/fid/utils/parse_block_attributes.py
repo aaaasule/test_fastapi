@@ -1,60 +1,24 @@
 import json
+from pathlib import Path
+current_file = Path(__file__).resolve()
+root_dir = current_file.parent
+while root_dir.name != 'app' and root_dir.parent != root_dir:
+    root_dir = root_dir.parent
 
-#from app.fid.utils.check_device import check_which_device
+if root_dir.name == 'app':
+    project_root = root_dir.parent
+else:
+    #  fallback: 假设就在上一级
+    project_root = current_file.parent.parent
+
+# 3. 将项目根目录加入 Python 搜索路径
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+from app.fid.utils.check_device import check_which_device
 
 import traceback
 from typing import List, Any, Dict
 import re
-
-
-def check_which_device(equipment: Dict[str, Any], filename: Any):
-    for _tail in ['PA', 'PD', 'PE', 'PV', 'PP', 'PW']:
-        if f'FID.{_tail}' in filename:
-            return 'TAKEOFF'
-
-    for _tail in ['PC']:
-        if f'FID.{_tail}' in filename:
-            return 'VMB_CHEMICAL'  # PC只有chemical  PS只有gasname
-    for _tail in ['PS']:
-        if f'FID.{_tail}' in filename:
-            return 'VMB_GASNAME'
-
-    for _tail in ['PB']:
-        if f'FID.{_tail}' in filename:
-            if 'INTERFACE_CODE' in equipment:
-                return 'TAKEOFF'
-            else:
-                return 'VMB_GASNAME'  # PB只有gasname
-
-    for _tail in ['ES']:
-        if f'FID.{_tail}' in filename:
-            if equipment.get('ID_SHORT'):
-                # print(f"ID_SHORT-{equipment.get('ID_SHORT')}")
-                if 'GPB' in equipment.get('ID_SHORT').upper():
-                    return 'GPB'
-                elif 'LINE' in equipment.get('ID_SHORT').upper():
-                    return 'I_LINE'
-                else:
-                    return 'NEW_INTER_'
-
-    if 'INTERFACE_CODE' in equipment:
-        return 'TAKEOFF'
-    elif 'VMB-TYPE' in equipment:
-        if 'CHEMICALNAME' in equipment:
-            return 'VMB_CHEMICAL'
-        elif 'GASNAME' in equipment:
-            return 'VMB_GASNAME'
-
-    elif equipment.get('ID_SHORT'):
-        if 'GPB' in equipment.get('ID_SHORT', '').upper():
-            return 'GPB'
-        elif 'LINE' in equipment.get('ID_SHORT', '').upper():
-            return 'I_LINE'
-        elif equipment.get('ID', '').upper().startswith('BUS'):
-            return 'NEW_INTER_'
-
-    return 'I_LINE'
-
 
 def parse_interface_code(code: str) -> dict:
     if not isinstance(code, str):
