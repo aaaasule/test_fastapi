@@ -2,7 +2,6 @@
 import json
 import os
 import sys
-import time
 from pathlib import Path
 
 # 获取当前文件绝对路径：/data/new_merge_interface/app/fid/api_util.py
@@ -49,12 +48,8 @@ from app.fid.utils.replace_nan_with_none import replace_nan_with_none
 from app.fid.utils.check_result_is_valid import check_result_valid
 from app.fid.utils import safe_json_loads
 
-import datetime
 import traceback
 import pandas as pd
-import functools
-
-print = functools.partial(print, flush=True)
 
 pd.set_option('display.max_rows', None)
 
@@ -92,14 +87,7 @@ async def _eld_check(
         mission_start_time,
         mode
 ):
-    # [新增] 记录开始时间
-    s_time = time.time()
     try:
-        print('-' * 30 + f'{mission_start_time}接收参数' + '-' * 30)
-        start_time = mission_start_time
-
-        # --- 阶段 1: 参数解析与预处理 ---
-        t1 = time.time()
         filename = Path(file_path).name
         is_excel = filename.endswith('.xlsx')
 
@@ -111,7 +99,6 @@ async def _eld_check(
         equipment_group_list = safe_json_loads(equipmentGroupList)
         layer_list = safe_json_loads(layerList)
         grid_list = safe_json_loads(gridList) if not is_excel else {}
-        t1 = log_time(t1, "JSON 解析完成")
 
         request_data = {
             'company': company,
@@ -125,17 +112,7 @@ async def _eld_check(
             'grid_list': grid_list
         }
 
-        print(f"{company=}")
-        print(f"{fab=}")
-        print(f"{building=}")
-        print(f"{building_level=}")
-        print(f"{layer_list=}")
-        print(f"{grid_list=}")
-        print(f"{file_path=}")
-
         # 过滤逻辑
-        for egl in equipment_group_list:
-            print(f"line126{egl['id']=} {egl['code']=}")
         equipment_group_list = [egl for egl in equipment_group_list if
                                 egl.get('buildingId') == building_level.get('buildingId')]
 
@@ -143,7 +120,6 @@ async def _eld_check(
         fab_id = fab['id']
         building_id = building['id']
         building_level_code = building_level['code']
-        print('-' * 30 + '-' * 10 + '-' * 30)
 
         all_results = []  # 收集所有 CheckResult
         current_equipment_list = []
@@ -180,21 +156,15 @@ async def _eld_check(
             owner2id=owner2id_map
         )
 
-        for k, v in owner2id_map.items():
-            print(f"{k=} {v=}")
-
         # 2. 文件名校验
-        t2 = time.time()
         filename_validator = DXFFilenameValidator(DEFAULT_FILENAME_RULES)
         params = {'company': company_id,
                   'building': building_id,
                   'level': building_level_code}
         fname_errors = filename_validator.validate(file_path, **params)
         all_results.extend(fname_errors)
-        t2 = log_time(t2, "文件名校验完成")
 
         # 3. 尝试解析 DXF
-        t3 = time.time()
         if not os.path.exists(file_path):
             raise ValueError(f"DXF 文件不存在：{file_path}")
 
@@ -206,10 +176,8 @@ async def _eld_check(
                 f.write(json.dumps(cache_dxf_result, ensure_ascii=False, indent=2))
         except Exception as dxf_exception:
             raise Exception(f'dxf 文件解析遇到错误：{str(dxf_exception)}')
-        t3 = log_time(t3, "DXF 文件解析与缓存写入完成")
 
         # 4. 规范校验
-        t4 = time.time()
         if current_equipment_list:
             rule_validator = ELDRuleValidator(DEFAULT_RULE_RULES if not is_excel else DEFAULT_EXCEL_RULES)
             rule_results = rule_validator.validate(current_equipment_list, checker_info, request_data)
@@ -229,10 +197,8 @@ async def _eld_check(
             )])
             rule_results = grid_searcher.validate(current_equipment_list, checker_info)
             all_results.extend(rule_results)
-        t4 = log_time(t4, "规则校验 (Rule & Grid) 完成")
 
         # 5. 变更校验
-        t5 = time.time()
         previous_equips = {
             'fab': [],
             'building_level': []
@@ -271,28 +237,18 @@ async def _eld_check(
             if (item.get('buildingId') == building_level.get('buildingId')) and \
                     (item.get('buildingLevel') == building_level.get('code')):
                 previous_equips['building_level'].append(prev_eq)
-            print(f"{item.get('id')=} {item.get('code')=} {item.get('groupId')=}")
-
-        # print('fabtoolid--\n')
-        # for fti in {eq.tool_id for eq in previous_equips['fab']}:
-        #     print(f"{fti=}")
 
         # 变更校验
         if current_equipment_list:
             change_validator = ELDChangeValidator(DEFAULT_CHANGE_RULES if not is_excel else EXCEL_CHANGE_RULES)
             change_results = change_validator.validate(current_equipment_list, previous_equips, request_data)
             all_results.extend(change_results)
-        t5 = log_time(t5, "变更校验完成")
 
         # 6. 分离 error / warning
         errors_results = [r for r in all_results if r.type == "error"]
         warnings_results = [r for r in all_results if r.type == "warning"]
 
-        print(f"错误有 {len(errors_results)=} 条")
-        print(f"警告有 {len(warnings_results)=} 条")
-
         # 9. 转换当前设备为响应格式
-        t6 = time.time()
         data = []
         full_equipment_list = current_equipment_list
 
@@ -327,7 +283,6 @@ async def _eld_check(
                         })
                         current_description[f"{result.equipment.tool_id}-{cad_block_id}"].append(result.description)
 
-        print(f"equipment_error_map--\n{json.dumps(equipment_error_map, ensure_ascii=False, indent=2)}")
         final_error_results = []
         error_seen = set()
 
@@ -366,10 +321,6 @@ async def _eld_check(
                 warning_seen.add(f"{_result['code']}_{_result['cad_block_id']}")
                 final_warning_results.append(_result)
 
-        print(f"经过处理后共有 {len(final_error_results)} 条错误数据")
-        print(f"经过处理后共有 {len(final_warning_results)} 条警告数据")
-        t6 = log_time(t6, "结果分离、Map 构建与数据转换完成")
-
         if len(final_error_results) != 0:
             return_result = {
                 'code': 200,
@@ -402,20 +353,12 @@ async def _eld_check(
             return return_result
 
     except Exception as e:
-        print(traceback.format_exc())
-        e_time = datetime.datetime.now()
-        total_elapsed = time.time() - s_time
-        print(f'异常执行耗时：{total_elapsed:.4f}s')
         return_result = {
             "code": 400,
             "message": f"算法调用失败：{str(e)}",
             "traceback": traceback.format_exc(),
         }
         return return_result
-
-    # [新增] 正常结束时的总耗时统计
-    total_elapsed = time.time() - s_time
-    print(f'总执行耗时：{total_elapsed:.4f}s')
 
 
 def convert_to_check_errors(results: List[CheckResult]) -> List[CheckError]:
@@ -436,13 +379,6 @@ def convert_to_check_errors(results: List[CheckResult]) -> List[CheckError]:
     ]
 
 
-def log_time(start_time, label):
-    """辅助函数：打印耗时"""
-    elapsed = time.time() - start_time
-    print(f"[⏱️ 耗时 {elapsed:.4f}s] {label}")
-    return time.time()  # 返回新的开始时间供链式调用
-
-
 async def _fid_check(
         file_path,
         company,
@@ -458,13 +394,7 @@ async def _fid_check(
         mission_start_time,
         mode
 ):
-    s_time = time.time()
     try:
-        print('-' * 30 + f'{mission_start_time}接收参数' + '-' * 30)
-        start_time = mission_start_time
-
-        # --- 阶段 1: 参数解析与预处理 ---
-        t1 = time.time()
         company = safe_json_loads(company)
         fab = safe_json_loads(fab)
         building = safe_json_loads(building)
@@ -474,23 +404,14 @@ async def _fid_check(
         field_list = safe_json_loads(fieldList)
         interface_list = safe_json_loads(interfaceList)
         system_interface_list = safe_json_loads(systemInterfaceList)
-        t1 = log_time(t1, "JSON 解析完成")
 
         filename = Path(file_path).name
-        # 打印日志保留
-        print(f"{company=}")
-        print(f"{fab=}")
-        print(f"{building=}")
-        print(f"{building_level=}")
-        print(f"{system=}")
 
         company = {'id': company['id'], 'name': company['nameEn']}
         fab = {'id': fab['id'], 'name': fab['name']}
         building = {'id': building['id'], 'name': building['name']}
         building_level = {'id': building_level['id'], 'name': building_level['name']}
         system = {'id': system['id'], 'name': system['code']}
-
-        t1 = log_time(t1, "基础字典重构完成")
 
         # 列表转换
         subsystem_list = [convert_dict_keys_to_snake(sl) for sl in subsystem_list]
@@ -514,10 +435,8 @@ async def _fid_check(
         field_list = [convert_dict_keys_to_snake(fl) for fl in field_list]
         interface_list = [convert_dict_keys_to_snake(il) for il in interface_list]
         system_interface_list = [convert_dict_keys_to_snake(sil) for sil in system_interface_list]
-        t1 = log_time(t1, "列表清洗与分类完成")
 
         # --- 阶段 2: DataFrame 构建 ---
-        t2 = time.time()
         field_pd = pd.DataFrame.from_dict(field_list).add_prefix('FIELD.')
         subsystem_pd = pd.DataFrame.from_dict(subsystem_list).add_prefix('SUBSYSTEM.')
         interface_pd = pd.DataFrame.from_dict(interface_list).add_prefix('INTERFACE.')
@@ -538,9 +457,6 @@ async def _fid_check(
 
         delete_field_set = set([dfl['uni_code'] for dfl in delete_field_list])
         delete_interface_set = set([dil['uni_code'] for dil in delete_interface_list])
-
-        print(f"[api_util.py]|{delete_field_set=}")
-        print(f"[api_util.py]|{delete_interface_set=}")
 
         request_data = {
             'building': building,
@@ -565,8 +481,6 @@ async def _fid_check(
             right_on='SUBSYSTEM.id',
             how='left'
         )
-        print(f"{field_and_subsystem_pd.columns=}")
-
         interface_and_subsystem_pd = pd.merge(
             interface_pd,
             field_and_subsystem_pd,
@@ -574,10 +488,8 @@ async def _fid_check(
             right_on='FIELD.id',
             how='left'
         )
-        t2 = log_time(t2, "DataFrame 构建与 Merge 完成")
 
         # --- 阶段 3: DXF 解析 ---
-        t3 = time.time()
         if not os.path.exists(file_path):
             raise ValueError(f"DXF 文件不存在：{file_path}")
 
@@ -587,12 +499,9 @@ async def _fid_check(
                       errors='replace') as f:
                 f.write(json.dumps(current_equipment_list, ensure_ascii=False, indent=2))
         except Exception as dxf_exception:
-            print(traceback.format_exc())
             raise Exception(f'dxf 文件解析遇到错误：{str(dxf_exception)}')
-        t3 = log_time(t3, "DXF 文件解析与缓存写入完成")
 
         # --- 阶段 4: 规则校验 ---
-        t4 = time.time()
         all_results = []
 
         if current_equipment_list:
@@ -603,15 +512,10 @@ async def _fid_check(
             rule_validator_del = FIDDeleteValidator(FID_DELETE_RULES)
             rule_results_del = rule_validator_del.validate(current_equipment_list, request_data)
             all_results.extend(rule_results_del)
-        t4 = log_time(t4, "规则校验 (Rule & Delete) 完成")
 
         # --- 阶段 5: 结果分离与初步处理 ---
-        t5 = time.time()
         errors_results = [r for r in all_results if r.type == "error"]
         warnings_results = [r for r in all_results if r.type == "warning"]
-
-        print(f"错误有 {len(errors_results)=} 条")
-        print(f"警告有 {len(warnings_results)=} 条")
 
         full_equipment_list = current_equipment_list
         equipment_error_map = {}
@@ -657,30 +561,17 @@ async def _fid_check(
         for warning_data in warnings_results:
             final_warning_results.append(warning_data)
 
-        print(f"经过处理后共有 {len(final_error_results)} 条错误数据")
-        print(f"经过处理后共有 {len(final_warning_results)} 条警告数据")
-        t5 = log_time(t5, "结果分离、Map 构建与去重完成")
-
         # --- 阶段 6: 最终结果生成 (最可能的瓶颈) ---
-        t6 = time.time()
         errors_num = {'field': 0, 'interface': 0}
         warning_num = {'field': 0, 'interface': 0}
         final_results = {'interfaces': [], 'field': []}
-
-        gen_res_start_time = time.time()
 
         # 处理 Errors
         if len(final_error_results) != 0:
             field_record = []
             interface_record = []
-            subsystem_cache = []
 
-            loop_counter = 0
             for result in final_error_results:
-                loop_counter += 1
-                if loop_counter % 100 == 0:
-                    print(f"... 正在处理 Error 第 {loop_counter}/{len(final_error_results)} 条")
-
                 equipment = result.equipment[0]
                 equipments = parse_block_attributes(equipment, filename)
                 equipments = [{k.upper(): v for _equipment in equipments for k, v in _equipment.items()}]
@@ -707,10 +598,6 @@ async def _fid_check(
 
                     _interface_pd = interface_pd[
                         interface_pd['INTERFACE.uni_code'] == f"{result.equipment[1].get('INTERFACE_CODE')}"]
-
-                    result_subsystem = result.equipment[-1].get('SUB_SYSTEM') or ''
-                    if result_subsystem not in subsystem_cache:
-                        subsystem_cache.append(result_subsystem)
 
                     search_id = result.equipment[-1].get('SEARCH_ID', '').replace('.', ';')
                     _data = {
@@ -745,7 +632,6 @@ async def _fid_check(
                         'errors': result.errors
                     }
                     if not check_result_valid(_data):
-                        print(json.dumps(_data, ensure_ascii=False, indent=4))
                         raise Exception('check result is not valid')
 
                     key = f"{_data['uniCode']}-{_data['cadBlockId']}"
@@ -779,10 +665,6 @@ async def _fid_check(
                         subsystem_id = int(_subsystem_pd.iloc[0]['SUBSYSTEM.id'])
                     else:
                         subsystem_id = None
-
-                    result_subsystem = _equipment.get('SUB_SYSTEM') or ''
-                    if result_subsystem not in subsystem_cache:
-                        subsystem_cache.append(result_subsystem)
 
                     search_id = _equipment.get('SEARCH_ID').replace('.', ';') if _equipment.get('SEARCH_ID') else ''
 
@@ -866,7 +748,6 @@ async def _fid_check(
                         field_record.append(key)
                         errors_num['field'] += 1
 
-            print(f"{errors_num=}")
             final_results = replace_nan_with_none(final_results)
 
             return_result = {
@@ -876,23 +757,13 @@ async def _fid_check(
                 'data': final_results
             }
 
-            print(f"{subsystem_cache=}")
-            t6 = log_time(t6, "Error 结果生成循环完成")
-
         # 处理 Warnings
         elif len(final_warning_results) != 0:
             field_record = []
             interface_record = []
 
-            loop_counter = 0
             for result in final_warning_results:
-                loop_counter += 1
-                # if loop_counter % 100 == 0:
-                #     print(f"... 正在处理 Warning 第 {loop_counter}/{len(final_warning_results)} 条")
-
                 equipment = result.equipment[0]
-                print_id = (equipment.get("INTERFACE_ID") or equipment.get("ID_SHORT") or equipment.get("ID"))
-
                 last_equipment = equipment
                 equipments = parse_block_attributes(equipment, filename)
                 equipment = [{k.upper(): v for _equipment in equipments for k, v in _equipment.items()}][0]
@@ -994,7 +865,6 @@ async def _fid_check(
                     }
 
                     if not check_result_valid(_data):
-                        print(json.dumps(_data, ensure_ascii=False, indent=4))
                         raise Exception('check result is not valid')
 
                     key = f"{_data['uniCode']}-{_data['operation']}-{_data['cadBlockId']}"
@@ -1062,7 +932,6 @@ async def _fid_check(
                     }
 
                     if not check_result_valid(field_data):
-                        print(json.dumps(field_data, ensure_ascii=False, indent=4))
                         raise Exception('check result is not valid')
 
                     key = f"{field_data['uniCode']}-{field_data['operation']}"
@@ -1071,7 +940,6 @@ async def _fid_check(
                         final_results['field'].append(field_data)
                         warning_num['field'] += 1
 
-            print(f"{warning_num=}")
             final_results = replace_nan_with_none(final_results)
 
             # 统计操作类型
@@ -1108,8 +976,6 @@ async def _fid_check(
                 'success': True,
                 'data': final_results
             }
-            print(f"{return_result=}")
-            t6 = log_time(t6, "Warning 结果生成循环与统计完成")
 
         else:
             # 无错误无警告
@@ -1119,18 +985,10 @@ async def _fid_check(
                 'success': True,
                 'data': final_results
             }
-            t6 = log_time(t6, "无数据处理完成")
 
-        e_time = datetime.datetime.now()
-        total_elapsed = time.time() - s_time
-        print(f'总执行耗时：{total_elapsed:.4f}s')
         return return_result
 
     except Exception as e:
-        print(traceback.format_exc())
-        e_time = datetime.datetime.now()
-        total_elapsed = time.time() - s_time
-        print(f'异常执行耗时：{total_elapsed:.4f}s')
         return {
             "code": 400,
             "message": f"算法调用失败：{str(e)}",

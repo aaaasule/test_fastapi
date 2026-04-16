@@ -17,7 +17,7 @@ def main():
     try:
 
         config_path = sys.argv[1]
-        print(f"{config_path=}")
+        # print(f"{config_path=}")
         with open(config_path, 'r', encoding='utf-8') as f:
             params = json.load(f)
 
@@ -35,7 +35,7 @@ def main():
         sys.exit(0)
 
     except Exception as e:
-        print(traceback.format_exc())
+        # print(traceback.format_exc())
         error_result = {
             "code": 400,
             "message": f"算法调用失败: {str(e)}",

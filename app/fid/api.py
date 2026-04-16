@@ -3,7 +3,6 @@ import datetime
 import json
 import subprocess
 import sys
-import time
 import traceback
 import asyncio
 
@@ -63,20 +62,18 @@ async def eld_check(
     equipmentGroupList: str = Form(...),
     layerList: str = Form(...),
     gridList: str = Form(...),
-    mode: str = Form(config.CURRENT_ENV)
+    mode: str = Form("default"),
 ):
     try:
         # result = await _eld_check(file, company, fab, building, buildingLevel, equipmentList,
         #                    equipmentGroupList, layerList, gridList)
         logger.info('-' * 30 + f'{datetime.datetime.now()}接收ELD参数' + '-' * 30)
         start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        s_time = time.time()
 
         try:
             if not isinstance(file, str):
                 filename = re.sub('[^a-zA-Z0-9]', '', Path(file.filename).stem)
                 work_dir = Path(config.UPLOAD_DIR) / f"eld_{filename}"
-                #upload_dir = Path(config.UPLOAD_DIR)
                 work_dir.mkdir(parents=True, exist_ok=True)
 
                 file_path = work_dir / f"{Path(file.filename).stem}_{start_time}.dxf"
@@ -90,18 +87,15 @@ async def eld_check(
                 file_path = work_dir / f"{Path(file).stem}_{start_time}.dxf"
                 work_dir.mkdir(parents=True, exist_ok=True)
 
-
                 download_file_from_ftp(
-                    host=FTP_CONFIG[mode]['host'],
-                    username=FTP_CONFIG[mode]['username'],
-                    password=FTP_CONFIG[mode]['password'],
-                    port=FTP_CONFIG[mode]['port'],
+                    host=FTP_CONFIG['host'],
+                    username=FTP_CONFIG['username'],
+                    password=FTP_CONFIG['password'],
+                    port=FTP_CONFIG['port'],
                     local_file_path=str(file_path),
                     remote_filename=file
                 )
-            print(f"文件接收类型{type(file)}， 接收完成")
         except Exception as save_dxf_exception:
-            print(traceback.format_exc())
             raise Exception(f'dxf文件保存遇到错误： {str(save_dxf_exception)}')
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -137,7 +131,6 @@ async def eld_check(
                 str(Path(__file__).parent / "eld_check_cli.py"),
                 str(exec_config_path.absolute())
             ]
-            print(' '.join(cmd))
             with open(log_file, "w", encoding="utf-8") as log_f:
                 result = subprocess.run(
                     cmd,
@@ -150,34 +143,21 @@ async def eld_check(
         loop = asyncio.get_event_loop()
         returncode = await loop.run_in_executor(None, run_subprocess_sync)
 
-        #shutil.rmtree(str(file_path), ignore_errors=True)
-
-        #if result.returncode == 0:
         if returncode == 0:
             try:
                 with open(Path(exec_config_path).parent / f'result_{start_time}.json', 'r', encoding='utf-8') as f:
                     result = json.load(f)
                 return result
             except json.JSONDecodeError:
-                print(traceback.format_exc())
                 raise RuntimeError("子进程返回非JSON结果")
         else:
-            # 从日志中提取错误（可选）
             raise RuntimeError(f"子进程执行失败，日志: {log_file}")
 
     except Exception as e:
-        print(traceback.format_exc())
         return {
             "code": 400,
             "message": f"算法调用失败: {str(e)}"
         }
-    finally:
-        try:
-            end_time = time.time()
-
-            print(f"服务耗时-{end_time - s_time}")
-        except:
-            print(traceback.format_exc())
 
 @router.post("/api/fid_checker")
 async def fid_check(
@@ -191,19 +171,16 @@ async def fid_check(
         fieldList: str = Form(...),
         interfaceList: str = Form(...),
         systemInterfaceList: str = Form(...),
-        #mode: str = Form("dev")
-        mode: str = Form(config.CURRENT_ENV)
+        mode: str = Form("default"),
 ):
     try:
         logger.info('-' * 30 + f'{datetime.datetime.now()}接收FID参数' + '-' * 30)
         start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        s_time = time.time()
 
         try:
             if not isinstance(file, str):
                 filename = re.sub('[^a-zA-Z0-9]', '', Path(file.filename).stem)
                 work_dir = Path(config.UPLOAD_DIR) / f"fid_{filename}"
-                #upload_dir = Path(config.UPLOAD_DIR)
                 work_dir.mkdir(parents=True, exist_ok=True)
                 file_path = work_dir / f"{Path(file.filename).stem}_{start_time}.dxf"
                 with open(file_path, 'wb') as f:
@@ -211,48 +188,44 @@ async def fid_check(
                     f.write(file_content)
                 file_path = file_path.absolute()
             else:
-                print(f"{file=}")
-                print(f"{mode=}")
                 filename = re.sub('[^a-zA-Z0-9]', '', Path(file).stem)
                 work_dir = Path(config.UPLOAD_DIR) / f"fid_{filename}"
                 file_path = work_dir / f"{Path(file).stem}_{start_time}.dxf"
                 work_dir.mkdir(parents=True, exist_ok=True)
                 download_file_from_ftp(
-                    host=FTP_CONFIG[mode]['host'],
-                    username=FTP_CONFIG[mode]['username'],
-                    password=FTP_CONFIG[mode]['password'],
-                    port=FTP_CONFIG[mode]['port'],
+                    host=FTP_CONFIG['host'],
+                    username=FTP_CONFIG['username'],
+                    password=FTP_CONFIG['password'],
+                    port=FTP_CONFIG['port'],
                     local_file_path=str(file_path),
                     remote_filename=file
                 )
-            print(f"文件接收类型{type(file)}， 接收完成")
         except Exception as save_dxf_exception:
-            print(traceback.format_exc())
             raise Exception(f'dxf文件保存遇到错误： {str(save_dxf_exception)}')
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         #log_file = Path("./logs") / f"fid_{Path(file.filename).stem}" /f"{timestamp}.log"
 
-        separator = "-" * 20  # 定义分割线长度
+        # separator = "-" * 20  # 定义分割线长度
 
-        with open(work_dir / f'rec_config_{start_time}.txt', 'w', encoding='utf-8') as f:
-            # 辅助函数：写入标签、值和分割线
-            def write_field(label, value):
-                f.write(f"{label}: {value}\n")
-                f.write(f"{separator}\n")
+        # with open(work_dir / f'rec_config_{start_time}.txt', 'w', encoding='utf-8') as f:
+        #     # 辅助函数：写入标签、值和分割线
+        #     def write_field(label, value):
+        #         f.write(f"{label}: {value}\n")
+        #         f.write(f"{separator}\n")
 
-            write_field("File", file)
-            write_field("Company", company)
-            write_field("Fab", fab)
-            write_field("Building", building)
-            write_field("Building Level", buildingLevel)
-            write_field("System", system)
-            write_field("Subsystem List", subsystemList)
-            write_field("Field List", fieldList)
-            write_field("Interface List", interfaceList)
-            write_field("System Interface List", systemInterfaceList)
+        #     write_field("File", file)
+        #     write_field("Company", company)
+        #     write_field("Fab", fab)
+        #     write_field("Building", building)
+        #     write_field("Building Level", buildingLevel)
+        #     write_field("System", system)
+        #     write_field("Subsystem List", subsystemList)
+        #     write_field("Field List", fieldList)
+        #     write_field("Interface List", interfaceList)
+        #     write_field("System Interface List", systemInterfaceList)
 
-            f.write("End of Config\n")  # 结束标记
+        #     f.write("End of Config\n")  # 结束标记
 
         exec_config_path = work_dir / f'exec_config_{start_time}.json'
         log_file = exec_config_path.parent / f"{timestamp}.log"
@@ -283,7 +256,6 @@ async def fid_check(
                 str(Path(__file__).parent / "fid_check_cli.py"),
                 str(exec_config_path.absolute())
             ]
-            print(' '.join(cmd))
             with open(log_file, "w", encoding="utf-8") as log_f:
                 result = subprocess.run(
                     cmd,
@@ -297,11 +269,6 @@ async def fid_check(
         loop = asyncio.get_event_loop()
         returncode = await loop.run_in_executor(None, run_subprocess_sync)
 
-        #print(f"[api.py]{file_path=}")
-        #shutil.rmtree(str(file_path), ignore_errors=True)
-
-
-        #if result.returncode == 0:
         if returncode == 0:
             try:
                 with open(Path(exec_config_path).parent / f'result_{start_time}.json', 'r', encoding='utf-8') as f:
@@ -310,24 +277,15 @@ async def fid_check(
                 cleanup_old_logs(config.UPLOAD_DIR, config.MEMORY_LIMIT)
                 return result
             except json.JSONDecodeError:
-                print(traceback.format_exc())
                 raise RuntimeError("子进程返回非JSON结果")
         else:
-            # 从日志中提取错误（可选）
             raise RuntimeError(f"子进程执行失败，日志: {log_file}")
 
     except Exception as e:
-        print(traceback.format_exc())
         return {
             "code": 400,
             "message": f"算法调用失败: {str(e)}"
         }
-    finally:
-        try:
-            end_time = time.time()
-            print(f"服务耗时-{end_time - s_time}")
-        except:
-            print(traceback.format_exc())
 
 
 

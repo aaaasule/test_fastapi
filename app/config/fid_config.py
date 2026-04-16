@@ -65,9 +65,7 @@ UPLOAD_DIR = absolute_path
 #MEMORY_LIMIT = 40*1024*1024*1024
 MEMORY_LIMIT = get_int_from_env('MEMORY_LIMIT', 40) * 1024 * 1024 * 1024
 
-# 6. FTP 配置 (从环境变量构建，避免硬编码密码)
-# 获取当前环境 (dev, test, prod)，默认为 dev
-CURRENT_ENV = os.getenv('APP_ENV', 'dev').lower()
+# 6. FTP 配置 (从环境变量构建，避免硬编码密码；变量名 FTP_HOST / FTP_USER / FTP_PASS / FTP_PORT)
 
 disabled_fab_str = os.getenv("DISABLE_FAB", "")
 DISABLED_FAB_TUPLE = tuple(item.strip() for item in disabled_fab_str.split(',') if item.strip())
@@ -82,26 +80,14 @@ def build_ftp_config(env_prefix: str) -> dict:
         'port': int(os.getenv(f'{env_prefix}_PORT', 21))
     }
 
-FTP_CONFIG = {
-    'test': build_ftp_config('FTP_TEST'),
-    'dev': build_ftp_config('FTP_DEV'),
-    # 可以添加更多环境
-}
-
-# 验证当前选中的环境配置是否存在
-if CURRENT_ENV not in FTP_CONFIG:
-    raise ValueError(f"Invalid APP_ENV '{CURRENT_ENV}'. Available: {list(FTP_CONFIG.keys())}")
-
-# 可选：直接导出当前环境的快捷访问变量
-CURRENT_FTP_CONFIG = FTP_CONFIG[CURRENT_ENV]
+FTP_CONFIG = build_ftp_config('FTP')
 
 # 打印调试信息 (生产环境请关闭)
 if __name__ == "__main__":
-    print(f"Current Env: {CURRENT_ENV}")
     print(f"Upload Dir: {UPLOAD_DIR}")
     print(f"Required Fields: {REQUIRED_FIELDS}")
-    print(f"FTP Host: {CURRENT_FTP_CONFIG['host']}")
+    print(f"FTP Host: {FTP_CONFIG['host']}")
     print(f"MEMORY_LIMIT : {MEMORY_LIMIT}")
     print(f"DISABLED_FAB_TUPLE : {DISABLED_FAB_TUPLE}")
     # 不要打印密码
-    # print(f"FTP Pass: {CURRENT_FTP_CONFIG['password']}")
+    # print(f"FTP Pass: {FTP_CONFIG['password']}")
