@@ -145,17 +145,35 @@ class BlockPositionCheck(BaseRule):
                     description += f"insert_point_z({old_z},{new_z})\n"
 
                 if len(description) > 0:
-                    results.append(CheckResult(
-                        type=self.rule_type,
-                        name="图块位置变更",
-                        description=description,
-                        detail=f"坐标偏移量：dx={dx:.4f}, dy={dy:.4f}, dz={dz:.4f} (阈值:{threshold})",
-                        equipment=[eq],
-                        operation='update',
-                        field_or_interface='field',
-                        device=device
-                    ))
-                    break
+                    is_vmb = isinstance(device, str) and device.startswith('VMB')
+                    is_iline_or_gpb = device in ['I_LINE', 'GPB']
+                    should_add_interface = device in ['TAKEOFF', 'NEW_INTER_'] or is_vmb or is_iline_or_gpb
+                    should_add_field = (device not in ['TAKEOFF', 'NEW_INTER_']) or is_vmb or is_iline_or_gpb
+
+                    # VMB/I_LINE/GPB 需要双写：图块位置变更走 field，拼接出的接口位置变更走 interface
+                    if should_add_field:
+                        results.append(CheckResult(
+                            type=self.rule_type,
+                            name="图块位置变更",
+                            description=description,
+                            detail=f"坐标偏移量：dx={dx:.4f}, dy={dy:.4f}, dz={dz:.4f} (阈值:{threshold})",
+                            equipment=[eq],
+                            operation='update',
+                            field_or_interface='field',
+                            device=device
+                        ))
+                    if should_add_interface:
+                        results.append(CheckResult(
+                            type=self.rule_type,
+                            name="图块位置变更",
+                            description=description,
+                            detail=f"坐标偏移量：dx={dx:.4f}, dy={dy:.4f}, dz={dz:.4f} (阈值:{threshold})",
+                            equipment=[eq, info],
+                            operation='update',
+                            field_or_interface='interface',
+                            device=device
+                        ))
+                    # break
         return results
 
 
