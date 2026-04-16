@@ -29,8 +29,10 @@ def check_which_device(equipment: Dict[str, Any], filename: Any):
                     return 'GPB'
                 elif 'LINE' in equipment.get('ID_SHORT').upper():
                     return 'I_LINE'
-                else:
+                elif 'BUS' in equipment.get('ID_SHORT').upper():
                     return 'NEW_INTER_'
+                else:
+                    return 'I_LINE'
 
     if 'INTERFACE_CODE' in equipment:
         return 'TAKEOFF'
@@ -45,7 +47,7 @@ def check_which_device(equipment: Dict[str, Any], filename: Any):
             return 'GPB'
         elif 'LINE' in equipment.get('ID_SHORT', '').upper():
             return 'I_LINE'
-        elif equipment.get('ID', '').upper().startswith('BUS'):
+        elif 'BUS' in equipment.get('ID_SHORT').upper():
             return 'NEW_INTER_'
 
     return 'I_LINE'
