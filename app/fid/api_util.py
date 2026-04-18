@@ -593,6 +593,13 @@ async def _fid_check(
                         field_id = None
 
                 if len(result.equipment) > 1:
+
+                    if result.name == "ID.X唯一性错误":
+                        final_results['interfaces'].append(_data)
+                        interface_record.append(key)
+                        errors_num['interface'] += 1
+                        continue
+
                     result.equipment[0] = {k.upper(): v for k, v in result.equipment[0].items()}
                     result.equipment[1] = {k.upper(): v for k, v in result.equipment[1].items()}
 
@@ -749,6 +756,123 @@ async def _fid_check(
                         errors_num['field'] += 1
 
             final_results = replace_nan_with_none(final_results)
+
+            # 打个补丁， 将 append 到 field 中的 'ID.X唯一性错误' 错误类型 换到 interface
+            # 处理 'ID.X唯一性错误' 类型错误，将field中的 'ID.X唯一性错误' 类型错误，添加到 interface 中
+            for field_item in final_results['field']:
+                idx_errors = [e for e in (field_item.get('errors') or []) if e.get('errorName') == 'ID.X唯一性错误']
+                if not idx_errors:
+                    continue
+                matched = False
+                for interface_item in final_results['interfaces']:
+                    if interface_item.get('cadBlockId') == field_item.get('cadBlockId'):
+                        if interface_item.get('errors') is None:
+                            interface_item['errors'] = []
+                        interface_item['errors'].extend(idx_errors)
+                        matched = True
+                if not matched:
+                    new_interface = {
+                        'id': None,
+                        'parent_id': '',
+                        'field_id': field_item.get('id'),
+                        'fab_id': field_item.get('fab_id'),
+                        'building_id': field_item.get('building_id'),
+                        'building_level': field_item.get('building_level'),
+                        'uniCode': field_item.get('searchId') if ('.' in str(field_item.get('uniCode') or '')) else field_item.get('uniCode'),
+                        'code': field_item.get('code'),
+                        'field_code': field_item.get('uniCode'),
+                        'searchId': field_item.get('searchId') if field_item.get('cadBlockName').startswith('VMB') else field_item.get('searchId').split(';')[2],
+                        'conSize': field_item.get('conSize'),
+                        'conType': field_item.get('conType'),
+                        'maxDesignFlow': field_item.get('maxDesignFlow'),
+                        'unit': field_item.get('unit'),
+                        'is_Assigned': None,
+                        'chemicalName': field_item.get('chemicalName'),
+                        'isOutCode': None,
+                        'locked': field_item.get('locked'),
+                        'layer': field_item.get('layer'),
+                        'insertPointX': field_item.get('insertPointX'),
+                        'insertPointY': field_item.get('insertPointY'),
+                        'insertPointZ': field_item.get('insertPointZ'),
+                        'angle': field_item.get('angle'),
+                        'trueColor': field_item.get('trueColor'),
+                        'cadBlockId': field_item.get('cadBlockId'),
+                        'cadBlockName': field_item.get('cadBlockName'),
+                        'distributionBox': field_item.get('distributionBox'),
+                        'errors': idx_errors
+                    }
+                    final_results['interfaces'].append(new_interface)
+                field_item['errors'] = [e for e in (field_item.get('errors') or []) if
+                                        e.get('errorName') != 'ID.X唯一性错误']
+
+            # 处理 '必填项未填写: {field}' 类型错误，将field中的 '必填项未填写: {field}' 类型错误，添加到 interface 中
+            _interface_field_prefixes = ('ID.', 'CS.', 'CT.')
+            fields_to_remove = []
+            for field_item in final_results['field']:
+                all_errors = field_item.get('errors') or []
+                interface_required_errors = [
+                    e for e in all_errors
+                    if e.get('errorName') == '必填项缺失'
+                    and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
+                ]
+                if not interface_required_errors:
+                    continue
+
+                all_migrated = len(interface_required_errors) == len(all_errors)
+
+                matched = False
+                for interface_item in final_results['interfaces']:
+                    if interface_item.get('cadBlockId') == field_item.get('cadBlockId'):
+                        if interface_item.get('errors') is None:
+                            interface_item['errors'] = []
+                        interface_item['errors'].extend(interface_required_errors)
+                        matched = True
+                if not matched:
+                    new_interface = {
+                        'id': None,
+                        'parent_id': '',
+                        'field_id': field_item.get('id'),
+                        'fab_id': field_item.get('fab_id'),
+                        'building_id': field_item.get('building_id'),
+                        'building_level': field_item.get('building_level'),
+                        'uniCode': field_item.get('searchId'),
+                        'code': field_item.get('code'),
+                        'field_code': field_item.get('uniCode'),
+                        'searchId': field_item.get('searchId'),
+                        'conSize': field_item.get('conSize'),
+                        'conType': field_item.get('conType'),
+                        'maxDesignFlow': field_item.get('maxDesignFlow'),
+                        'unit': field_item.get('unit'),
+                        'is_Assigned': None,
+                        'chemicalName': field_item.get('chemicalName'),
+                        'isOutCode': None,
+                        'locked': field_item.get('locked'),
+                        'layer': field_item.get('layer'),
+                        'insertPointX': field_item.get('insertPointX'),
+                        'insertPointY': field_item.get('insertPointY'),
+                        'insertPointZ': field_item.get('insertPointZ'),
+                        'angle': field_item.get('angle'),
+                        'trueColor': field_item.get('trueColor'),
+                        'cadBlockId': field_item.get('cadBlockId'),
+                        'cadBlockName': field_item.get('cadBlockName'),
+                        'distributionBox': field_item.get('distributionBox'),
+                        'errors': interface_required_errors
+                    }
+                    final_results['interfaces'].append(new_interface)
+
+                if all_migrated:
+                    fields_to_remove.append(field_item)
+                else:
+                    field_item['errors'] = [
+                        e for e in all_errors
+                        if not (
+                            e.get('errorName') == '必填项缺失'
+                            and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
+                        )
+                    ]
+            for _f in fields_to_remove:
+                final_results['field'].remove(_f)
+
 
             return_result = {
                 'code': 200,
