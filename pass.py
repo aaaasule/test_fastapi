@@ -1,127 +1,59 @@
-from typing import List, Any, Dict
-
-import sys
-from pathlib import Path
-
-# 将项目根目录加入 Python 路径（当前文件: app/fid/eld_check_cli.py -> 上两级到根目录）
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from app.fid.validators.base_rules import BaseRule
-from app.fid.models import  CheckResult
-from app.fid.utils.parse_block_attributes import parse_block_attributes
-
-
-class IdxUniqueCheck(BaseRule):
-    # VMB属性块  |  i-Line/GPB等属性块
-
-    eqp_type = 'TAKEOFF'
-    rule_type = "error"
-    rule_name = 'ID.X唯一性错误'
-
-    ID_FIELD_MAP = {
-        'TAKEOFF': 'INTERFACE_CODE',
-        'VMB_CHEMICAL': 'ID',
-        'VMB_GASNAME': 'ID',
-        'I_LINE': 'ID',
-        'GPB': 'ID',
-        'NEW_INTER_': 'ID',
-    }
-
-    # 设备类型 → 所需字段列表
-    REQUIRED_FIELDS = {
-        'TAKEOFF': ['sub_system', 'building_level', 'field', 'id'],
-        'VMB_CHEMICAL': ['sub_system', 'building_level', 'field'],
-        'VMB_GASNAME': ['sub_system', 'building_level', 'field'],
-        'I_LINE': ['sub_system', 'building_level'],
-        'GPB': ['sub_system', 'building_level'],
-        'NEW_INTER_': ['sub_system', 'building_level'],
-    }
-
-    def check(self, equipments: Dict[str, List[Dict[str, Any]]], device: str = None, request_data=None) -> List[
-        CheckResult]:
-        """
-        对所有 equipment 执行 INTERFACE_CODE 校验。
-
-        Args:
-            equipments: 二维列表，通常外层是区域/系统，内层是设备
-            device: 设备类型，如 'TAKEOFF', 'VMB' 等
-
-        Returns:
-            List[CheckResult]
-        """
-
-        if device != None:
-            equipments = equipments[device]
-
-        if len(equipments) == 0:
-            return []
-
-        results = []
-
-        for eq in equipments:
-            equipments_infos = parse_block_attributes(eq, request_data['filename'])
-
-            idx_seen = {}
-            for key in eq:
-                if key.startswith('ID.') and eq[key]:
-                    if eq[key] not in idx_seen:
-                        idx_seen[eq[key]] = [key]
-                    else:
-                        idx_seen[eq[key]].append(key)
-
-            description = '同一属性块中:'
-            dup_infos = []
-            for k, v in idx_seen.items():
-                if len(v) > 1:
-                    description += f"{','.join(v)}重复"
-                    print(f"{description=}")
-                    dup_suffixes = {key.split('.', 1)[-1] for key in v}
-                    dup_infos.extend(
-                        info for info in equipments_infos if info.get('x') in dup_suffixes
+# 处理 '必填项未填写: {field}' 类型错误，将field中的 '必填项未填写: {field}' 类型错误，添加到 interface 中
+            _interface_field_prefixes = ('ID.', 'CS.', 'CT.')
+            for field_item in final_results['field']:
+                interface_required_errors = [
+                    e for e in (field_item.get('errors') or [])
+                    if e.get('errorName') == '必填项缺失'
+                    and any(
+                        prefix in e.get('errorDescription', '')
+                        for prefix in _interface_field_prefixes
                     )
-
-            print(f'{description=}', len(description))
-            if len(description) > 7:
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="ID.X唯一性错误",
-                    description=description,
-                    detail=description,
-                    equipment=[eq] + dup_infos,
-                    device=device,
-                    field_or_interface='interface'
-                ))
-
-        return results
-
-
-if __name__ == '__main__':
-    import sys
-    from pathlib import Path
-    print(sys.path)
-    print(Path('./').absolute().parent.parent)
-    sys.path.append(str(Path('./').absolute().parent.parent.parent))
-    from eld_validator.fid_parse import parse_dxf
-
-    dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PA^FAB1^F2.dxf'  # take off
-    #dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PC^FAB2^F2.dxf'
-    dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PS^FAB1^F2.dxf'
-    dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PS^FAB2^F2.dxf'
-    #dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.ES^FAB2^F2.dxf'
-
-    eqps = parse_dxf(dxf_path)
-
-    request_data = {'field&interface':{'N208V-3P;FAB2F2-BUS-F21-1-N2-15-Q10':
-         {'sub_system': 'U-3P;FAB2F2-F22-1-2I-LINE-U2-05-63D2716'}}
-     }
-    for eq in eqps:
-        if not eq.startswith('VMB_GASNAME'):
-            continue
-
-        rule = InterfaceCodeRule()
-        results = rule.check(eqps, device=eq, request_data=request_data)
-
-        for r in results:
-            print(r)
-
+                ]
+                if not interface_required_errors:
+                    continue
+                matched = False
+                for interface_item in final_results['interfaces']:
+                    if interface_item.get('cadBlockId') == field_item.get('cadBlockId'):
+                        if interface_item.get('errors') is None:
+                            interface_item['errors'] = []
+                        interface_item['errors'].extend(interface_required_errors)
+                        matched = True
+                if not matched:
+                    new_interface = {
+                        'id': None,
+                        'parent_id': '',
+                        'field_id': field_item.get('id'),
+                        'fab_id': field_item.get('fab_id'),
+                        'building_id': field_item.get('building_id'),
+                        'building_level': field_item.get('building_level'),
+                        'uniCode': field_item.get('searchId'),
+                        'code': field_item.get('code'),
+                        'field_code': field_item.get('uniCode'),
+                        'searchId': field_item.get('searchId'),
+                        'conSize': field_item.get('conSize'),
+                        'conType': field_item.get('conType'),
+                        'maxDesignFlow': field_item.get('maxDesignFlow'),
+                        'unit': field_item.get('unit'),
+                        'is_Assigned': None,
+                        'chemicalName': field_item.get('chemicalName'),
+                        'isOutCode': None,
+                        'locked': field_item.get('locked'),
+                        'layer': field_item.get('layer'),
+                        'insertPointX': field_item.get('insertPointX'),
+                        'insertPointY': field_item.get('insertPointY'),
+                        'insertPointZ': field_item.get('insertPointZ'),
+                        'angle': field_item.get('angle'),
+                        'trueColor': field_item.get('trueColor'),
+                        'cadBlockId': field_item.get('cadBlockId'),
+                        'cadBlockName': field_item.get('cadBlockName'),
+                        'distributionBox': field_item.get('distributionBox'),
+                        'errors': interface_required_errors
+                    }
+                    final_results['interfaces'].append(new_interface)
+                field_item['errors'] = [
+                    e for e in (field_item.get('errors') or [])
+                    if not (
+                        e.get('errorName') == '必填项缺失'
+                        and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
+                    )
+                ]
