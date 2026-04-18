@@ -1,16 +1,17 @@
-# 处理 '必填项未填写: {field}' 类型错误，将field中的 '必填项未填写: {field}' 类型错误，添加到 interface 中
             _interface_field_prefixes = ('ID.', 'CS.', 'CT.')
+            fields_to_remove = []
             for field_item in final_results['field']:
+                all_errors = field_item.get('errors') or []
                 interface_required_errors = [
-                    e for e in (field_item.get('errors') or [])
+                    e for e in all_errors
                     if e.get('errorName') == '必填项缺失'
-                    and any(
-                        prefix in e.get('errorDescription', '')
-                        for prefix in _interface_field_prefixes
-                    )
+                    and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
                 ]
                 if not interface_required_errors:
                     continue
+
+                all_migrated = len(interface_required_errors) == len(all_errors)
+
                 matched = False
                 for interface_item in final_results['interfaces']:
                     if interface_item.get('cadBlockId') == field_item.get('cadBlockId'):
@@ -50,10 +51,16 @@
                         'errors': interface_required_errors
                     }
                     final_results['interfaces'].append(new_interface)
-                field_item['errors'] = [
-                    e for e in (field_item.get('errors') or [])
-                    if not (
-                        e.get('errorName') == '必填项缺失'
-                        and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
-                    )
-                ]
+
+                if all_migrated:
+                    fields_to_remove.append(field_item)
+                else:
+                    field_item['errors'] = [
+                        e for e in all_errors
+                        if not (
+                            e.get('errorName') == '必填项缺失'
+                            and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
+                        )
+                    ]
+            for _f in fields_to_remove:
+                final_results['field'].remove(_f)
