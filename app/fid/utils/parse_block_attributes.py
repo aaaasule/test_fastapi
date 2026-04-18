@@ -294,7 +294,7 @@ def parse_block_attributes(equipment, filename):
                     "interface_code": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{IDx}" if IDx not in [None, ''] else f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{_id}",
                     'id': f"{IDx}" if IDx != None else f"{_id}",
                     "field_code": f"{sub_system}.{building_level}.{equipment.get('ID_SHORT')}",
-                    "search_id": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{IDx}" if IDx not in [None, ''] else f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{_id}",
+                    "search_id": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''}" if IDx not in [None, ''] else f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''}",
                     "connection_size": equipment.get(f'CS.{_id}', ''),
                     "connection_type": equipment.get(f'CT.{_id}', ''),
                     "equipment_code": equipment.get(f'EQU.{_id}', ''),
