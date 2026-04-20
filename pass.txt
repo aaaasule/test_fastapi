@@ -1,8 +1,24 @@
-✅ 成功: {                                                                                                                                                                                                                          
-    "code": 400,
-    "code": 400,
-    "message": "算法调用失败：'gbk' codec can't encode character '\\u2705' in position 0: illegal multibyte sequence",
-    "traceback": "Traceback (most recent call last):\n  File \"V:\\Desktop\\test_fastapi\\app\\fid\\api_util.py\", line 509, in _fid_check\n    rule_results = rule_validator.validate(current_equipment_list, request_data)\n  File
- \"\\\\vdinas\\perdata\\L12120071\\Desktop\\test_fastapi\\app\\fid\\validators\\rule_validator.py\", line 93, in validate\n    print(\"✅ 通过 - 未发现异常\")\nUnicodeEncodeError: 'gbk' codec can't encode character '\\u2705' in 
-position 0: illegal multibyte sequence\n"
-}
+Traceback (most recent call last):
+  File "/data/merge_interface_v2/app/fid/fid_check_cli.py", line 49, in <module>
+    main()
+  File "/data/merge_interface_v2/app/fid/fid_check_cli.py", line 28, in main
+    result = asyncio.run(_fid_check(**params))
+  File "/home/devadmin/miniconda3/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/home/devadmin/miniconda3/lib/python3.10/asyncio/base_events.py", line 636, in run_until_complete
+    self.run_forever()
+  File "/home/devadmin/miniconda3/lib/python3.10/asyncio/base_events.py", line 603, in run_forever
+    self._run_once()
+  File "/home/devadmin/miniconda3/lib/python3.10/asyncio/base_events.py", line 1909, in _run_once
+    handle._run()
+  File "/home/devadmin/miniconda3/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/data/merge_interface_v2/app/fid/api_util.py", line 899, in _fid_check
+    subsystem_id_df = subsystem_pd[subsystem_pd['SUBSYSTEM.code'] == equipment.get('SUB_SYSTEM')]
+  File "/home/devadmin/.local/lib/python3.10/site-packages/pandas/core/frame.py", line 3797, in __getitem__
+    if com.is_bool_indexer(key):
+  File "/home/devadmin/.local/lib/python3.10/site-packages/pandas/core/common.py", line 138, in is_bool_indexer
+    elif is_bool_dtype(key.dtype):
+  File "/home/devadmin/.local/lib/python3.10/site-packages/pandas/core/dtypes/common.py", line 1335, in is_bool_dtype
+    return issubclass(dtype.type, np.bool_)
+KeyboardInterrupt
