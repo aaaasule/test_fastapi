@@ -46,22 +46,22 @@
         ]
       },
       {
-        "id": null,
+        "id": 309618,
         "parent_id": "",
         "field_id": 35122,
         "fab_id": 2,
         "building_id": 2000001,
         "building_level": "F2",
-        "uniCode": "N2O;FAB2F2;2a29N-E;D06G",
-        "code": "2a29N-E;D06G",
+        "uniCode": "N2O;FAB2F2;2a29N-E;D06G-2",
+        "code": "2",
         "field_code": "N2O.FAB2F2.2a29N-E;D06G",
         "searchId": "N2O;FAB2F2;2a29N-E;D06G",
         "conSize": "1/4\"",
         "conType": "Vm",
-        "maxDesignFlow": null,
+        "maxDesignFlow": "",
         "unit": "",
         "is_Assigned": null,
-        "chemicalName": null,
+        "chemicalName": "N2O",
         "isOutCode": null,
         "locked": null,
         "layer": "0",
@@ -78,6 +78,11 @@
             "errorName": "ID.X唯一性错误",
             "errorType": "error",
             "errorDescription": "同一属性块中:ID.B,ID.C重复"
+          },
+          {
+            "errorName": "ID唯一性错误",
+            "errorType": "error",
+            "errorDescription": "图纸中ID重复"
           }
         ]
       },
@@ -213,12 +218,12 @@
         "locked": null,
         "vmb_type": "Type7",
         "layer": "0",
-        "insertPointX": 9182.6764,
+        "insertPointX": 7182.6764,
         "insertPointY": 5788.8648,
         "insertPointZ": 0.0,
         "angle": 0.0,
         "trueColor": 256,
-        "cadBlockId": "B5D",
+        "cadBlockId": "B20",
         "cadBlockName": "VMB-PS",
         "distributionBox": true,
         "errors": [
@@ -248,15 +253,20 @@
         "locked": null,
         "vmb_type": "Type7",
         "layer": "0",
-        "insertPointX": 7182.6764,
+        "insertPointX": 9182.6764,
         "insertPointY": 5788.8648,
         "insertPointZ": 0.0,
         "angle": 0.0,
         "trueColor": 256,
-        "cadBlockId": "B20",
+        "cadBlockId": "B5D",
         "cadBlockName": "VMB-PS",
         "distributionBox": true,
         "errors": [
+          {
+            "errorName": "ID.X唯一性错误",
+            "errorType": "error",
+            "errorDescription": "同一属性块中:ID.B,ID.C重复"
+          },
           {
             "errorName": "ID唯一性错误",
             "errorType": "error",
