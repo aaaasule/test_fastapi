@@ -7,1066 +7,113 @@
       {
         "id": null,
         "parent_id": "",
-        "field_id": null,
+        "field_id": 35418,
         "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;16",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;08",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;09",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;12",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;19",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;05",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;13",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;03",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;20",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;01",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;02",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;07",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;10",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;11",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;17",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;18",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;15",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;14",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;04",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ";;F22-1-2I-LINE-U2-05-63D27;06",
-        "code": "",
-        "field_code": "..F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": "",
-        "conType": "",
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "",
-        "code": "",
-        "field_code": "..",
-        "searchId": "",
-        "conSize": "",
-        "conType": "",
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "H;FAB2F2;2a27L-W;D13E-B",
+        "code": "B",
+        "field_code": "H.FAB2F2.2a27L-W;D13E",
+        "searchId": "H;FAB2F2;2a27L-W;D13E",
+        "conSize": "1/4\"",
+        "conType": "CFA",
         "maxDesignFlow": "",
+        "unit": "",
+        "is_Assigned": null,
+        "chemicalName": "H",
+        "isOutCode": null,
+        "locked": null,
+        "layer": "0",
+        "insertPointX": 5182.6764,
+        "insertPointY": 5788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "A8C",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
+        "errors": [
+          {
+            "errorName": "基于SDC校验Sub_system",
+            "errorType": "error",
+            "errorDescription": "sub_system与SDC中设定不符"
+          },
+          {
+            "errorName": "基于SDC校验CS、CT",
+            "errorType": "error",
+            "errorDescription": "CT信息与SDC中设定不符"
+          }
+        ]
+      },
+      {
+        "id": null,
+        "parent_id": "",
+        "field_id": 35122,
+        "fab_id": 2,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "N2O;FAB2F2;2a29N-E;D06G",
+        "code": "2a29N-E;D06G",
+        "field_code": "N2O.FAB2F2.2a29N-E;D06G",
+        "searchId": "N2O;FAB2F2;2a29N-E;D06G",
+        "conSize": "1/4\"",
+        "conType": "Vm",
+        "maxDesignFlow": null,
         "unit": "",
         "is_Assigned": null,
         "chemicalName": null,
         "isOutCode": null,
         "locked": null,
-        "layer": "",
-        "insertPointX": "",
-        "insertPointY": "",
-        "insertPointZ": "",
-        "angle": "",
-        "trueColor": "",
-        "cadBlockId": "",
-        "cadBlockName": "",
-        "distributionBox": "",
+        "layer": "0",
+        "insertPointX": 9182.6764,
+        "insertPointY": 5788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "B5D",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
+        "errors": [
+          {
+            "errorName": "ID.X唯一性错误",
+            "errorType": "error",
+            "errorDescription": "同一属性块中:ID.B,ID.C重复"
+          }
+        ]
+      },
+      {
+        "id": null,
+        "parent_id": "",
+        "field_id": 35544,
+        "fab_id": 2,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "CH4;FAB2F2;2a01G-W;E01E",
+        "code": "2a01G-W;E01E",
+        "field_code": "CH4.FAB2F2.2a01G-W;E01E",
+        "searchId": "CH4;FAB2F2;2a01G-W;E01E",
+        "conSize": "1/4\"",
+        "conType": "Vm",
+        "maxDesignFlow": null,
+        "unit": "",
+        "is_Assigned": null,
+        "chemicalName": null,
+        "isOutCode": null,
+        "locked": null,
+        "layer": "0",
+        "insertPointX": 1182.6764,
+        "insertPointY": 5788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "7ED",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
         "errors": [
           {
             "errorName": "必填项缺失",
             "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
+            "errorDescription": "必填项未填写：CT.C"
           }
         ]
       }
@@ -1074,245 +121,65 @@
     "field": [
       {
         "id": null,
-        "system_id": 11,
-        "subsystem_id": null,
+        "system_id": 8,
+        "subsystem_id": 214,
         "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": ".FAB2F2.F21-1-2GPB-N2-08-25L12",
-        "code": "F21-1-2GPB-N2-08-25L12",
-        "searchId": "F21-1-2GPB-N2-08-25L12",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 12763.8498,
-        "insertPointY": 45505.4349,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "135B",
-        "cadBlockName": "¹Ì¶¨Ê½¹¤ÒÕÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F21-2-2GPB-N2-02-25L01",
-        "code": "F21-2-2GPB-N2-02-25L01",
-        "searchId": "F21-2-2GPB-N2-02-25L01",
-        "conSize": "400",
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 9763.8498,
-        "insertPointY": 45505.4349,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "131A",
-        "cadBlockName": "¹Ì¶¨Ê½¹¤ÒÕÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F21-2-2GPB-N2-02-25L01",
-        "code": "F21-2-2GPB-N2-02-25L01",
-        "searchId": "F21-2-2GPB-N2-02-25L01",
-        "conSize": "400",
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 9763.8498,
-        "insertPointY": 41505.4349,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "15A4",
-        "cadBlockName": "¹Ì¶¨Ê½¹¤ÒÕÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "..F22-1-2I-LINE-U2-05-63D27",
-        "code": "F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "322",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": null,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "..",
-        "code": "",
-        "searchId": "",
-        "conSize": null,
-        "conType": null,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "SiH4.FAB2F2.2a27L-W",
+        "code": "2a27L-W",
+        "searchId": "SiH4;FAB2F2;2a27L-W",
+        "conSize": "1/4\"",
+        "conType": "Vm",
         "maxDesignFlow": null,
         "unit": "",
         "is_Assigned": null,
         "isOutCode": null,
         "locked": null,
-        "vmb_type": null,
+        "vmb_type": "Type5",
         "layer": "0",
-        "insertPointX": "",
-        "insertPointY": "",
-        "insertPointZ": "",
-        "angle": "",
-        "trueColor": "",
-        "cadBlockId": "",
-        "cadBlockName": "",
-        "distributionBox": "",
+        "insertPointX": 3182.6764,
+        "insertPointY": 5788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "A4F",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
         "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：ID"
-          },
           {
             "errorName": "ID规范性错误",
             "errorType": "error",
-            "errorDescription": "未包含两个字段，{sub_system};{building_level} "
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level()与设定(WSF1)中设定不符"
+            "errorDescription": "未包含三个字段，{sub_system};{building_level};{field} "
           }
         ]
       },
       {
         "id": null,
-        "system_id": 11,
+        "system_id": 8,
         "subsystem_id": null,
         "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "FAB2F2.2a26E-E.F22-1-2I-LINE-U2-05-63D27",
-        "code": "F22-1-2I-LINE-U2-05-63D27",
-        "searchId": "F22-1-2I-LINE-U2-05-63D27",
-        "conSize": null,
-        "conType": null,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "H.FAB2F2.2a27L-W;D13E",
+        "code": "2a27L-W;D13E",
+        "searchId": "H;FAB2F2;2a27L-W;D13E",
+        "conSize": "1/4\"",
+        "conType": "Vm",
         "maxDesignFlow": null,
-        "unit": null,
+        "unit": "",
         "is_Assigned": null,
         "isOutCode": null,
         "locked": null,
-        "vmb_type": null,
+        "vmb_type": "Type5",
         "layer": "0",
-        "insertPointX": 12478.7929,
-        "insertPointY": 61845.2882,
+        "insertPointX": 5182.6764,
+        "insertPointY": 5788.8648,
         "insertPointZ": 0.0,
         "angle": 0.0,
         "trueColor": 256,
-        "cadBlockId": "3A4",
-        "cadBlockName": "I-LINEÅÌ",
+        "cadBlockId": "A8C",
+        "cadBlockName": "VMB-PS",
         "distributionBox": true,
         "errors": [
           {
@@ -1321,1004 +188,79 @@
             "errorDescription": "sub_system与SDC中设定不符"
           },
           {
-            "errorName": "building_level字段错误",
+            "errorName": "基于SDC校验CS、CT",
             "errorType": "error",
-            "errorDescription": "building_level(2a26E-E)与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID_Short唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID_Short重复"
+            "errorDescription": "CT信息与SDC中设定不符"
           }
         ]
       },
       {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": null,
+        "id": 35122,
+        "system_id": 8,
+        "subsystem_id": 210,
         "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "U408V-3P.FAB2F2.F22-2-2I-LINE-U4-01-12E30",
-        "code": "F22-2-2I-LINE-U4-01-12E30",
-        "searchId": "F22-2-2I-LINE-U4-01-12E30",
-        "conSize": null,
-        "conType": null,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "N2O.FAB2F2.2a29N-E;D06G",
+        "code": "2a29N-E;D06G",
+        "searchId": "N2O;FAB2F2;2a29N-E;D06G",
+        "conSize": "1/4\"",
+        "conType": "Vm",
         "maxDesignFlow": null,
-        "unit": null,
+        "unit": "",
         "is_Assigned": null,
         "isOutCode": null,
         "locked": null,
-        "vmb_type": null,
+        "vmb_type": "Type7",
         "layer": "0",
-        "insertPointX": 15478.7929,
-        "insertPointY": 61845.2882,
+        "insertPointX": 9182.6764,
+        "insertPointY": 5788.8648,
         "insertPointZ": 0.0,
         "angle": 0.0,
         "trueColor": 256,
-        "cadBlockId": "3E5",
-        "cadBlockName": "I-LINEÅÌ",
+        "cadBlockId": "B5D",
+        "cadBlockName": "VMB-PS",
         "distributionBox": true,
         "errors": [
           {
-            "errorName": "基于SDC校验Sub_system",
+            "errorName": "ID唯一性错误",
             "errorType": "error",
-            "errorDescription": "sub_system与SDC中设定不符"
-          },
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
+            "errorDescription": "图纸中ID重复"
           }
         ]
       },
       {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 9,
+        "id": 35122,
+        "system_id": 8,
+        "subsystem_id": 210,
         "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N480V-3P.FAB2F2.F21-1-2I-LINE-N4-09-12E26",
-        "code": "F21-1-2I-LINE-N4-09-12E26",
-        "searchId": "F21-1-2I-LINE-N4-09-12E26",
-        "conSize": null,
-        "conType": null,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "N2O.FAB2F2.2a29N-E;D06G",
+        "code": "2a29N-E;D06G",
+        "searchId": "N2O;FAB2F2;2a29N-E;D06G",
+        "conSize": "1/4\"",
+        "conType": "Vm",
         "maxDesignFlow": null,
-        "unit": null,
+        "unit": "",
         "is_Assigned": null,
         "isOutCode": null,
         "locked": null,
-        "vmb_type": null,
+        "vmb_type": "Type7",
         "layer": "0",
-        "insertPointX": 18478.7929,
-        "insertPointY": 61845.2882,
+        "insertPointX": 7182.6764,
+        "insertPointY": 5788.8648,
         "insertPointZ": 0.0,
         "angle": 0.0,
         "trueColor": 256,
-        "cadBlockId": "426",
-        "cadBlockName": "I-LINEÅÌ",
+        "cadBlockId": "B20",
+        "cadBlockName": "VMB-PS",
         "distributionBox": true,
         "errors": [
           {
-            "errorName": "building_level字段错误",
+            "errorName": "ID唯一性错误",
             "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 13,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N380V-3P.FAB2F2.F21-1-2I-LINE-N3-07-63E28",
-        "code": "F21-1-2I-LINE-N3-07-63E28",
-        "searchId": "F21-1-2I-LINE-N3-07-63E28",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 21478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "467",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          },
-          {
-            "errorName": "ID.X唯一性错误",
-            "errorType": "error",
-            "errorDescription": "同一属性块中:ID.08,ID.09重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 13,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N380V-3P.FAB2F2.F21-1-2I-LINE-N3-17-63D24",
-        "code": "F21-1-2I-LINE-N3-17-63D24",
-        "searchId": "F21-1-2I-LINE-N3-17-63D24",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 24478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "4A8",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-10-12D24",
-        "code": "F22-1-2I-LINE-N2-10-12D24",
-        "searchId": "F22-1-2I-LINE-N2-10-12D24",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 27478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "4E9",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-08-12D23",
-        "code": "F22-1-2I-LINE-N2-08-12D23",
-        "searchId": "F22-1-2I-LINE-N2-08-12D23",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 30478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "52A",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-07-12E23",
-        "code": "F22-1-2I-LINE-N2-07-12E23",
-        "searchId": "F22-1-2I-LINE-N2-07-12E23",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 33478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "56B",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-30-63E31",
-        "code": "F22-1-2I-LINE-N2-30-63E31",
-        "searchId": "F22-1-2I-LINE-N2-30-63E31",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 36478.7929,
-        "insertPointY": 61845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "5AC",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-29-63E31",
-        "code": "F22-1-2I-LINE-N2-29-63E31",
-        "searchId": "F22-1-2I-LINE-N2-29-63E31",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "5ED",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-27-63D29",
-        "code": "F22-1-2I-LINE-N2-27-63D29",
-        "searchId": "F22-1-2I-LINE-N2-27-63D29",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 12478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "62E",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-04-63D26",
-        "code": "F22-1-2I-LINE-N2-04-63D26",
-        "searchId": "F22-1-2I-LINE-N2-04-63D26",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 15478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "66F",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-09-63E24",
-        "code": "F22-1-2I-LINE-N2-09-63E24",
-        "searchId": "F22-1-2I-LINE-N2-09-63E24",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 18478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "6B0",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-06-63D23",
-        "code": "F22-1-2I-LINE-N2-06-63D23",
-        "searchId": "F22-1-2I-LINE-N2-06-63D23",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 21478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "6F1",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-05-63E23",
-        "code": "F22-1-2I-LINE-N2-05-63E23",
-        "searchId": "F22-1-2I-LINE-N2-05-63E23",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 24478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "732",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-24-63D29",
-        "code": "F22-1-2I-LINE-N2-24-63D29",
-        "searchId": "F22-1-2I-LINE-N2-24-63D29",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 27478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "773",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-22-63E29",
-        "code": "F22-1-2I-LINE-N2-22-63E29",
-        "searchId": "F22-1-2I-LINE-N2-22-63E29",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 30478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "7B4",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-20-63D28",
-        "code": "F22-1-2I-LINE-N2-20-63D28",
-        "searchId": "F22-1-2I-LINE-N2-20-63D28",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 33478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "7F5",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-19-63E28",
-        "code": "F22-1-2I-LINE-N2-19-63E28",
-        "searchId": "F22-1-2I-LINE-N2-19-63E28",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 36478.7929,
-        "insertPointY": 59845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "836",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-18-63E27",
-        "code": "F22-1-2I-LINE-N2-18-63E27",
-        "searchId": "F22-1-2I-LINE-N2-18-63E27",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 9478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "877",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-17-63D26",
-        "code": "F22-1-2I-LINE-N2-17-63D26",
-        "searchId": "F22-1-2I-LINE-N2-17-63D26",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 12478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "8B8",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 5,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N208V-3P.FAB2F2.F22-1-2I-LINE-N2-03-63D25",
-        "code": "F22-1-2I-LINE-N2-03-63D25",
-        "searchId": "F22-1-2I-LINE-N2-03-63D25",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 15478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "8F9",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 9,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N480V-3P.FAB2F2.F21-1-2I-LINE-N4-08-63D25",
-        "code": "F21-1-2I-LINE-N4-08-63D25",
-        "searchId": "F21-1-2I-LINE-N4-08-63D25",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 18478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "93A",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 9,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "N480V-3P.FAB2F2.F21-1-2I-LINE-N4-12-63D30",
-        "code": "F21-1-2I-LINE-N4-12-63D30",
-        "searchId": "F21-1-2I-LINE-N4-12-63D30",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 21478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "97B",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 6,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "U208V-3P.FAB2F2.F22-2-2I-LINE-U2-04-63E27",
-        "code": "F22-2-2I-LINE-U2-04-63E27",
-        "searchId": "F22-2-2I-LINE-U2-04-63E27",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 24478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "9BC",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 6,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "U208V-3P.FAB2F2.F22-2-2I-LINE-U2-06-63D27",
-        "code": "F22-2-2I-LINE-U2-06-63D27",
-        "searchId": "F22-2-2I-LINE-U2-06-63D27",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 27478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "9FD",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 6,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "U208V-3P.FAB2F2.F22-2-2I-LINE-U2-09-63E28",
-        "code": "F22-2-2I-LINE-U2-09-63E28",
-        "searchId": "F22-2-2I-LINE-U2-09-63E28",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 30478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "A3E",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 6,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "U208V-3P.FAB2F2.F22-2-2I-LINE-U2-08-63E28",
-        "code": "F22-2-2I-LINE-U2-08-63E28",
-        "searchId": "F22-2-2I-LINE-U2-08-63E28",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 33478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "A7F",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "system_id": 11,
-        "subsystem_id": 6,
-        "fab_id": 2,
-        "building_id": 2000002,
-        "building_level": "F1",
-        "uniCode": "U208V-3P.FAB2F2.F22-2-2I-LINE-U2-11-63D29",
-        "code": "F22-2-2I-LINE-U2-11-63D29",
-        "searchId": "F22-2-2I-LINE-U2-11-63D29",
-        "conSize": null,
-        "conType": null,
-        "maxDesignFlow": null,
-        "unit": null,
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": null,
-        "layer": "0",
-        "insertPointX": 36478.7929,
-        "insertPointY": 57845.2882,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "AC0",
-        "cadBlockName": "I-LINEÅÌ",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "building_level字段错误",
-            "errorType": "error",
-            "errorDescription": "building_level(FAB2F2)与设定(WSF1)中设定不符"
+            "errorDescription": "图纸中ID重复"
           }
         ]
       }
