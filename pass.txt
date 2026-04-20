@@ -1,26 +1,8 @@
- 口
-圆管理员;命令提示符-python main.py
-为已预环。,Moe,0,-2032466693),None)
-During handling of the above exception, another exception occurred
-Traceback (most recent cal1 1ast)
-Fi1e "D:EPMSvApp\EPMs_PYTHoM_YIsI0\visio_extractor.py",1ine 558,in extract_yisio_data
-doc = visio.Documents.0pen(abs path)
-”爱生是界”,(0,以soosn1,mws。无法打开文件件中的组件
-During handling of the above exception, another exception occurred
-Traceback (most recent cal1 1ast):
-Fi1e "D:BPMS\App\BPMS_PYTHOM_vISI0\visio_extractor,py",1ine 560, in extract_visio_data
-raise Exceptin(f"无法打开isio文件:str(openex2)1n路径:[abspath]")
-exti无法开Yisi。文件:(21473525e7,发生意外。,0visi。Protessiona1’,’nnvisi。无法打开该文件或文
-的组件,因为已损坏。,one,0,-2032466693),None)
-路径:D:5pMPTN1S101oadsACLA10PB_1775799727.vscm
-During handling of the above exception, another exception occurred
-Traceback (most recent cal1 1ast):
-Fi1e "D:\EPMS\App\EPMS_PYTHON_VISI0\main.py",1ine 148,in visio_pid
-result = extract visio data(abs file path)
-Fi1e"D:\BPMS\App\EPMS_PYTHON_YSI0\yisio_extractor.py",1ine 597,in extract_visio_data
-raise Exception(f“yisio COM 操作失败:str(e)]
-Bzceptin:si。0操作失败:无法打并isi。文件:(-2147352567,’发生意外。,(0,’visioProfessicna1’,’n\nVisic
-法打开该文件或文件中的组件,因为已损环。',None,0,-2032466693),None
-路径:D:EFMSAppEPMSPYTHOISI0\u1oadsVACLEA10PB_1775799727.vsdn
-10.42.44.76:56563-”[1mP0ST/api/visiopid HTTP/1.1[0m’[32m200 0K [0m
-[32mIP0 [0m:
+✅ 成功: {                                                                                                                                                                                                                          
+    "code": 400,
+    "code": 400,
+    "message": "算法调用失败：'gbk' codec can't encode character '\\u2705' in position 0: illegal multibyte sequence",
+    "traceback": "Traceback (most recent call last):\n  File \"V:\\Desktop\\test_fastapi\\app\\fid\\api_util.py\", line 509, in _fid_check\n    rule_results = rule_validator.validate(current_equipment_list, request_data)\n  File
+ \"\\\\vdinas\\perdata\\L12120071\\Desktop\\test_fastapi\\app\\fid\\validators\\rule_validator.py\", line 93, in validate\n    print(\"✅ 通过 - 未发现异常\")\nUnicodeEncodeError: 'gbk' codec can't encode character '\\u2705' in 
+position 0: illegal multibyte sequence\n"
+}
