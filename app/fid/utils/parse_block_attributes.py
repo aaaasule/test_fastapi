@@ -291,7 +291,7 @@ def parse_block_attributes(equipment, filename):
                     "field": equipment.get('ID_SHORT'),
                     "system": "PC",
                     "sub_system": sub_system,
-                    "interface_code": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{IDx}" if IDx not in [None, ''] else f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{_id}",
+                    "interface_code": f"{equipment.get('ID') or ''}-{IDx}" if IDx not in [None, ''] else f"{equipment.get('ID') or ''}-{_id}",
                     'id': f"{IDx}" if IDx != None else f"{_id}",
                     "field_code": f"{sub_system}.{building_level}.{equipment.get('ID_SHORT')}",
                     "search_id": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''}" if IDx not in [None, ''] else f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''}",
@@ -306,7 +306,9 @@ def parse_block_attributes(equipment, filename):
                     "angle": equipment['ANGLE'],
                     "true_color": equipment['TRUE_COLOR'],
                     "cad_block_id": equipment['CAD_BLOCK_ID'],
-                    "distribution_box": True
+                    "distribution_box": True,
+                    'x': _id,
+                    "IDx": IDx
                 }
 
                 result.append(_result)
