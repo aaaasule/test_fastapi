@@ -529,7 +529,6 @@ async def _fid_check(
             _id = eq.get("CAD_BLOCK_ID")
             if _id not in equipment_error_map:
                 equipment_error_map[_id] = []
-
         # 填充 map
         for result in all_results:
             if not result.equipment or len(result.equipment) == 0:
@@ -548,7 +547,6 @@ async def _fid_check(
                     existing_names = [eem_dict['errorName'] for eem_dict in equipment_error_map[cad_block_id]]
                     if error_dict['errorName'] not in existing_names:
                         equipment_error_map[cad_block_id].append(error_dict)
-
         final_error_results = []
         for eq in errors_results:
             equipment = eq.equipment[0]
@@ -556,7 +554,6 @@ async def _fid_check(
             if _id in equipment_error_map and len(equipment_error_map[_id]) > 0:
                 eq.errors = equipment_error_map[_id]
                 final_error_results.append(eq)
-
         final_warning_results = []
         # 这里原本有去重逻辑被注释掉了，保持原样直接 append
         for warning_data in warnings_results:
@@ -576,7 +573,6 @@ async def _fid_check(
                 equipment = result.equipment[0]
                 equipments = parse_block_attributes(equipment, filename)
                 equipments = [{k.upper(): v for _equipment in equipments for k, v in _equipment.items()}]
-
                 field_code = equipments[0].get('FIELD')
                 # 注意：这里的 iloc 查询在循环中非常慢，如果数据量大，这里是主要瓶颈
                 result_pd = field_pd[field_pd['FIELD.code'] == field_code]
@@ -635,6 +631,7 @@ async def _fid_check(
                     }
                     if not check_result_valid(_data):
                         raise Exception('check result is not valid')
+
 
                     key = f"{_data['uniCode']}-{_data['cadBlockId']}"
                     if key not in interface_record:
@@ -768,6 +765,7 @@ async def _fid_check(
                         interface_item['errors'].extend(idx_errors)
                         matched = True
                 if not matched:
+
                     new_interface = {
                         'id': None,
                         'parent_id': '',
@@ -775,9 +773,9 @@ async def _fid_check(
                         'fab_id': field_item.get('fab_id'),
                         'building_id': field_item.get('building_id'),
                         'building_level': field_item.get('building_level'),
-                        'uniCode': field_item.get('searchId') + '-' + field_item.get('idx') if (
+                        'uniCode': field_item.get('searchId') + field_item.get('idx') if (
                                 '.' in str(field_item.get('uniCode') or '')) else field_item.get(
-                            'uniCode') + '-' + field_item.get('idx'),
+                            'uniCode') + field_item.get('idx'),
                         'code': field_item.get('code'),
                         'field_code': field_item.get('uniCode'),
                         'searchId': field_item.get('searchId') if field_item.get('cadBlockName').startswith('VMB') else
