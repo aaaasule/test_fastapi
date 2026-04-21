@@ -55,7 +55,8 @@ pd.set_option('display.max_rows', None)
 
 # 导入 FTP 和数据库相关工具
 from app.config import fid_config as config
-#from app.config.fid_config import FTP_CONFIG
+
+# from app.config.fid_config import FTP_CONFIG
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent
@@ -594,12 +595,6 @@ async def _fid_check(
 
                 if len(result.equipment) > 1:
 
-                    if result.name == "ID.X唯一性错误":
-                        final_results['interfaces'].append(_data)
-                        interface_record.append(key)
-                        errors_num['interface'] += 1
-                        continue
-
                     result.equipment[0] = {k.upper(): v for k, v in result.equipment[0].items()}
                     result.equipment[1] = {k.upper(): v for k, v in result.equipment[1].items()}
 
@@ -746,7 +741,9 @@ async def _fid_check(
                         'cadBlockId': _equipment.get('CAD_BLOCK_ID'),
                         'cadBlockName': _equipment.get('CAD_BLOCK_NAME'),
                         'distributionBox': _equipment.get('DISTRIBUTION_BOX'),
-                        'errors': result.errors
+                        'errors': result.errors,
+                        'idx': result.equipment[0].get('idx') if result.equipment[0].get(
+                            'idx') else ''
                     }
 
                     key = f"{field_data['uniCode']}-{field_data['cadBlockId']}"
@@ -778,10 +775,13 @@ async def _fid_check(
                         'fab_id': field_item.get('fab_id'),
                         'building_id': field_item.get('building_id'),
                         'building_level': field_item.get('building_level'),
-                        'uniCode': field_item.get('searchId') if ('.' in str(field_item.get('uniCode') or '')) else field_item.get('uniCode'),
+                        'uniCode': field_item.get('searchId') + '-' + field_item.get('idx') if (
+                                '.' in str(field_item.get('uniCode') or '')) else field_item.get(
+                            'uniCode') + '-' + field_item.get('idx'),
                         'code': field_item.get('code'),
                         'field_code': field_item.get('uniCode'),
-                        'searchId': field_item.get('searchId') if field_item.get('cadBlockName').startswith('VMB') else field_item.get('searchId').split(';')[2],
+                        'searchId': field_item.get('searchId') if field_item.get('cadBlockName').startswith('VMB') else
+                        field_item.get('searchId').split(';')[2],
                         'conSize': field_item.get('conSize'),
                         'conType': field_item.get('conType'),
                         'maxDesignFlow': field_item.get('maxDesignFlow'),
@@ -813,7 +813,7 @@ async def _fid_check(
                 interface_required_errors = [
                     e for e in all_errors
                     if e.get('errorName') == '必填项缺失'
-                    and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
+                       and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
                 ]
                 if not interface_required_errors:
                     continue
@@ -866,13 +866,12 @@ async def _fid_check(
                     field_item['errors'] = [
                         e for e in all_errors
                         if not (
-                            e.get('errorName') == '必填项缺失'
-                            and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
+                                e.get('errorName') == '必填项缺失'
+                                and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
                         )
                     ]
             for _f in fields_to_remove:
                 final_results['field'].remove(_f)
-
 
             return_result = {
                 'code': 200,
