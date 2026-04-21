@@ -82,17 +82,26 @@ class IdxUniqueCheck(BaseRule):
                 # print(f"{k=} {v=} {type(v)} {len(v)}")
                 if len(v) > 1:
                     description += f"{','.join(v)}重复"
-                    print(f"{description=}")
-                    dup_suffixes = {key.split('.',1)[-1] for key in v}
+                    # logger.info(f"{description=}")
+                    dup_suffixes = {key.split('.', 1)[-1] for key in v}
+                    # logger.info(f"dup_suffixes:{dup_suffixes}")
                     dup_info.extend(
                         info for info in equipments_infos if info.get('x') in dup_suffixes
                     )
-
-            print(f'{description=}', len(description))
-            
+            from app.config import logger
+            # logger.info(f"dup_info:{dup_info}")
             if len(description) > 7:
+                # logger.info(f"dup_info——IDx:{dup_info}")
+                logger.info(f"dup_info——device:{device}")
                 if len(dup_info) > 0:
-                    eq['idx'] = dup_info[0].get('IDx')
+                    idx = ''
+                    if device in ['I_LINE', 'GPB']:
+                        idx = ';' + dup_info[0].get('IDx')
+                    elif device.startswith('VMB'):
+                        idx = '-' + dup_info[0].get('IDx')
+
+                    eq['idx'] = idx
+                # logger.info(f"dup_info——IDx--eq:{eq}")
                 results.append(CheckResult(
                     type=self.rule_type,
                     name="ID.X唯一性错误",
