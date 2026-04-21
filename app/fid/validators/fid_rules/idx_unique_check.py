@@ -8,7 +8,8 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.fid.validators.base_rules import BaseRule
-from app.fid.models import  CheckResult
+from app.fid.models import CheckResult
+from app.fid.utils.parse_block_attributes import parse_block_attributes
 
 
 class IdxUniqueCheck(BaseRule):
@@ -59,12 +60,13 @@ class IdxUniqueCheck(BaseRule):
         results = []
 
         for eq in equipments:
+            equipments_infos = parse_block_attributes(eq, request_data['filename'])
 
             idx_cache = []
             idx_seen = {}
             # print(f"{eq=}")
             for key in eq:
-                #print(f"{key=} {eq[key]=}")
+                # print(f"{key=} {eq[key]=}")
                 if key.startswith('ID.') and eq[key]:
                     if eq[key] not in idx_seen:
                         # idx_seen.add(eq[key])
@@ -72,17 +74,25 @@ class IdxUniqueCheck(BaseRule):
                     else:
                         # print(f"{eq[key]=}")
                         idx_seen[eq[key]].append(key)
-                        #print(f"{idx_seen=}")
+                        # print(f"{idx_seen=}")
 
             description = '同一属性块中:'
+            dup_info = []
             for k, v in idx_seen.items():
-                #print(f"{k=} {v=} {type(v)} {len(v)}")
+                # print(f"{k=} {v=} {type(v)} {len(v)}")
                 if len(v) > 1:
                     description += f"{','.join(v)}重复"
                     print(f"{description=}")
+                    dup_suffixes = {key.split('.',1)[-1] for key in v}
+                    dup_info.extend(
+                        info for info in equipments_infos if info.get('x') in dup_suffixes
+                    )
 
             print(f'{description=}', len(description))
+            
             if len(description) > 7:
+                if len(dup_info) > 0:
+                    eq['idx'] = dup_info[0].get('IDx')
                 results.append(CheckResult(
                     type=self.rule_type,
                     name="ID.X唯一性错误",
@@ -98,22 +108,23 @@ class IdxUniqueCheck(BaseRule):
 if __name__ == '__main__':
     import sys
     from pathlib import Path
+
     print(sys.path)
     print(Path('./').absolute().parent.parent)
     sys.path.append(str(Path('./').absolute().parent.parent.parent))
     from eld_validator.fid_parse import parse_dxf
 
     dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PA^FAB1^F2.dxf'  # take off
-    #dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PC^FAB2^F2.dxf'
+    # dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PC^FAB2^F2.dxf'
     dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PS^FAB1^F2.dxf'
     dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PS^FAB2^F2.dxf'
-    #dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.ES^FAB2^F2.dxf'
+    # dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.ES^FAB2^F2.dxf'
 
     eqps = parse_dxf(dxf_path)
 
-    request_data = {'field&interface':{'N208V-3P;FAB2F2-BUS-F21-1-N2-15-Q10':
-         {'sub_system': 'U-3P;FAB2F2-F22-1-2I-LINE-U2-05-63D2716'}}
-     }
+    request_data = {'field&interface': {'N208V-3P;FAB2F2-BUS-F21-1-N2-15-Q10':
+                                            {'sub_system': 'U-3P;FAB2F2-F22-1-2I-LINE-U2-05-63D2716'}}
+                    }
     for eq in eqps:
         if not eq.startswith('VMB_GASNAME'):
             continue
@@ -123,4 +134,3 @@ if __name__ == '__main__':
 
         for r in results:
             print(r)
-
