@@ -307,7 +307,7 @@ def parse_block_attributes(equipment, filename):
                     "true_color": equipment['TRUE_COLOR'],
                     "cad_block_id": equipment['CAD_BLOCK_ID'],
                     "distribution_box": True,
-                    'x': _id,
+                    "x": _id,
                     "IDx": IDx
                 }
 
