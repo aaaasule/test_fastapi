@@ -23,7 +23,7 @@ class BlockAttributeCheck(FIDBaseRule):
     rule_name = '图块属性修改'
 
     DEFAULT_FIELDS = ["VMB_TYPE", 'I/O']
-    #io\
+    # io\
 
     ATTRIBUTIONS = {
         'TAKEOFF': ['CS', 'CT', 'FLOW_UNIT', 'DESIGN_FLOW'],
@@ -136,7 +136,7 @@ class BlockAttributeCheck(FIDBaseRule):
             except Exception as e:
                 print(f"[ERROR] parse_block_attributes failed for eq {idx}: {e}")
                 equipments_info = []
-            #log_time(f"Eq[{idx}] parse_block_attributes", parse_start)
+            # log_time(f"Eq[{idx}] parse_block_attributes", parse_start)
 
             for info_idx, info in enumerate(equipments_info):
                 inner_step_start = time.time()
@@ -186,49 +186,49 @@ class BlockAttributeCheck(FIDBaseRule):
                             interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
                         if (ct or info['connection_type']) and ct != info['connection_type']:
                             modify_cache.append('ct')
-                            desc_changes.append(f"ct({ct},{str(info['connection_type'])})") # 【修改】
+                            desc_changes.append(f"ct({ct},{str(info['connection_type'])})")  # 【修改】
                             interface_detail += f"CT 修改 ({ct}) -> ({info['connection_type']})\n"
                         if (flow_unit or info['flow_unit']) and flow_unit != info['flow_unit']:
                             modify_cache.append('flow_unit')
-                            desc_changes.append(f"flow_unit({flow_unit},{str(info['flow_unit'])})") # 【修改】
+                            desc_changes.append(f"flow_unit({flow_unit},{str(info['flow_unit'])})")  # 【修改】
                             interface_detail += f"flow_unit 修改 ({flow_unit}) -> ({info['flow_unit']})\n"
                         if (design_flow or info['design_flow']) and design_flow != info['design_flow']:
                             modify_cache.append('design_flow')
-                            desc_changes.append(f"design_flow({design_flow},{str(info['design_flow'])})") # 【修改】
+                            desc_changes.append(f"design_flow({design_flow},{str(info['design_flow'])})")  # 【修改】
                             interface_detail += f"design_flow 修改 ({design_flow}) -> ({info['design_flow']})\n"
 
                     elif device in ['VMB_CHEMICAL', 'VMB_GASNAME']:
                         if (cs or info['connection_size']) and cs != info['connection_size']:
                             modify_cache.append('cs')
-                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
+                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})")  # 【修改】
                             interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
                         if (ct or info['connection_type']) and ct != info['connection_type']:
                             modify_cache.append('ct')
-                            desc_changes.append(f"ct({ct},{str(info['connection_type'])})") # 【修改】
+                            desc_changes.append(f"ct({ct},{str(info['connection_type'])})")  # 【修改】
                             interface_detail += f"CT 修改 ({ct}) -> ({info['connection_type']})\n"
                         if (flow_unit or info['flow_unit']) and flow_unit != info['flow_unit']:
                             modify_cache.append('flow_unit')
-                            desc_changes.append(f"flow_unit({flow_unit},{str(info['flow_unit'])})") # 【修改】
+                            desc_changes.append(f"flow_unit({flow_unit},{str(info['flow_unit'])})")  # 【修改】
                             interface_detail += f"flow_unit 修改 ({flow_unit}) -> ({info['flow_unit']})\n"
                         if (design_flow or info['design_flow']) and design_flow != info['design_flow']:
                             modify_cache.append('design_flow')
-                            desc_changes.append(f"design_flow({design_flow},{str(info['design_flow'])})") # 【修改】
+                            desc_changes.append(f"design_flow({design_flow},{str(info['design_flow'])})")  # 【修改】
                             interface_detail += f"design_flow 修改 ({design_flow}) -> ({info['design_flow']})\n"
                         if (vmb_type or info['vmb-type']) and vmb_type != info['vmb-type']:
                             modify_cache.append('vmb-type')
-                            desc_changes.append(f"vmb-type({vmb_type},{str(info['vmb-type'])})") # 【修改】
+                            desc_changes.append(f"vmb-type({vmb_type},{str(info['vmb-type'])})")  # 【修改】
                             field_detail += f"vmb_type 修改 ({vmb_type}) -> ({info['vmb-type']})\n"
 
                     elif device in ['I_LINE', 'GPB']:
                         if (cs or info['connection_size']) and cs != info['connection_size']:
                             modify_cache.append('cs')
-                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
+                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})")  # 【修改】
                             interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
 
                     elif device == 'NEW_INTER_':
                         if (cs or info['connection_size']) and cs != info['connection_size']:
                             modify_cache.append('cs')
-                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
+                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})")  # 【修改】
                             interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
 
                 log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Attribute Compare", compare_start)
@@ -238,9 +238,10 @@ class BlockAttributeCheck(FIDBaseRule):
                 #                                                                                             'VMB_CHEMICAL',
                 #                                                                                             'VMB_GASNAME'] and 'cs' in modify_cache:
                 #     modify_cache.remove('cs')
-                if request_data.get('fab', {}).get('name', '').endswith(request_data['disable_fab']) and device not in ['TAKEOFF', 'VMB_CHEMICAL', 'VMB_GASNAME'] and 'cs' in modify_cache:
+                if request_data.get('fab', {}).get('name', '').endswith(request_data['disable_fab']) and 'ES' in \
+                        request_data['filename'] and 'cs' in modify_cache:
                     modify_cache.remove('cs')
-                    desc_changes = [d for d in desc_changes if not d.startswith('cs')] # 【新增】同步移除
+                    desc_changes = [d for d in desc_changes if not d.startswith('cs')]  # 【新增】同步移除
 
                 # 结果追加
                 if len(modify_cache) > 0:
@@ -249,7 +250,7 @@ class BlockAttributeCheck(FIDBaseRule):
                         results.append(CheckResult(
                             type=self.rule_type,
                             name="图块属性修改",
-                            description=description + ' '.join(desc_changes), # 【修改】使用详细变化列表
+                            description=description + ' '.join(desc_changes),  # 【修改】使用详细变化列表
                             detail=description + field_detail,
                             equipment=[eq],
                             operation=f'update',
@@ -260,18 +261,18 @@ class BlockAttributeCheck(FIDBaseRule):
                         results.append(CheckResult(
                             type=self.rule_type,
                             name="图块属性修改",
-                            description=description + ','.join(desc_changes), # 【修改】使用详细变化列表
+                            description=description + ','.join(desc_changes),  # 【修改】使用详细变化列表
                             detail=description + interface_detail,
                             equipment=[eq, info],
                             operation=f'update',
                             field_or_interface='interface',
                             device=device
                         ))
-                    #log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Append Result", append_start)
+                    # log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Append Result", append_start)
 
-                #log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Total Inner Loop", inner_step_start)
+                # log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Total Inner Loop", inner_step_start)
 
-            #log_time(f"Eq[{idx}] Total Outer Loop", step_start)
+            # log_time(f"Eq[{idx}] Total Outer Loop", step_start)
 
         loop_end = time.time()
         print(f"[PERF] 主循环总耗时：{(loop_end - loop_start) * 1000:.2f} ms")
