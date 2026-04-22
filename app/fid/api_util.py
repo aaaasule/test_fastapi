@@ -871,6 +871,21 @@ async def _fid_check(
             for _f in fields_to_remove:
                 final_results['field'].remove(_f)
 
+            # 对 final_results 中 interface级别的errors进行去重
+            for interface in final_results['interfaces']:
+                errors = interface.get('errors')
+                if not errors:
+                    continue
+                seen = set()
+                unique_errors = []
+
+                for err in errors:
+                    err_str = json.dumps(err, sort_keys=True, ensure_ascii=False)
+                    if err_str not in seen:
+                        seen.add(err_str)
+                        unique_errors.append(err)
+                interface['errors'] = unique_errors
+
             return_result = {
                 'code': 200,
                 'message': "调用成功",
