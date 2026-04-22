@@ -46,22 +46,140 @@
         ]
       },
       {
-        "id": 309618,
+        "id": 307188,
+        "parent_id": "",
+        "field_id": 34801,
+        "fab_id": 2,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "NG;FAB2F2;2a30N-E;D09K-7",
+        "code": "7",
+        "field_code": "NG.FAB2F2.2a30N-E;D09K",
+        "searchId": "NG;FAB2F2;2a30N-E;D09K",
+        "conSize": "6/2\"",
+        "conType": "Sw",
+        "maxDesignFlow": "",
+        "unit": "",
+        "is_Assigned": null,
+        "chemicalName": "NG",
+        "isOutCode": null,
+        "locked": null,
+        "layer": "0",
+        "insertPointX": 3182.6764,
+        "insertPointY": 1788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "1115",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
+        "errors": [
+          {
+            "errorName": "必填项缺失",
+            "errorType": "error",
+            "errorDescription": "必填项未填写：CS.F"
+          },
+          {
+            "errorName": "基于SDC校验CS、CT",
+            "errorType": "error",
+            "errorDescription": "CS信息与SDC中设定不符"
+          },
+          {
+            "errorName": "必填项缺失",
+            "errorType": "error",
+            "errorDescription": "必填项未填写：CS.F"
+          }
+        ]
+      },
+      {
+        "id": 307843,
+        "parent_id": "",
+        "field_id": 34884,
+        "fab_id": 2,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "H2;FAB2F2;2a27L-W;D06H-8",
+        "code": "8",
+        "field_code": "H2.FAB2F2.2a27L-W;D06H",
+        "searchId": "H2;FAB2F2;2a27L-W;D06H",
+        "conSize": "5/4\"",
+        "conType": "Vm",
+        "maxDesignFlow": "",
+        "unit": "",
+        "is_Assigned": null,
+        "chemicalName": "H2",
+        "isOutCode": null,
+        "locked": null,
+        "layer": "0",
+        "insertPointX": 1182.6764,
+        "insertPointY": 1788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "1152",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
+        "errors": [
+          {
+            "errorName": "基于SDC校验CS、CT",
+            "errorType": "error",
+            "errorDescription": "CS信息与SDC中设定不符"
+          }
+        ]
+      },
+      {
+        "id": 307838,
+        "parent_id": "",
+        "field_id": 34884,
+        "fab_id": 2,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "H2;FAB2F2;2a27L-W;D06H-1",
+        "code": "1",
+        "field_code": "H2.FAB2F2.2a27L-W;D06H",
+        "searchId": "H2;FAB2F2;2a27L-W;D06H",
+        "conSize": "8/4\"",
+        "conType": "Vm",
+        "maxDesignFlow": "",
+        "unit": "",
+        "is_Assigned": null,
+        "chemicalName": "H2",
+        "isOutCode": null,
+        "locked": null,
+        "layer": "0",
+        "insertPointX": 1182.6764,
+        "insertPointY": 1788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "1152",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
+        "errors": [
+          {
+            "errorName": "基于SDC校验CS、CT",
+            "errorType": "error",
+            "errorDescription": "CS信息与SDC中设定不符"
+          }
+        ]
+      },
+      {
+        "id": null,
         "parent_id": "",
         "field_id": 35122,
         "fab_id": 2,
         "building_id": 2000001,
         "building_level": "F2",
         "uniCode": "N2O;FAB2F2;2a29N-E;D06G-2",
-        "code": "2",
+        "code": "2a29N-E;D06G",
         "field_code": "N2O.FAB2F2.2a29N-E;D06G",
         "searchId": "N2O;FAB2F2;2a29N-E;D06G",
         "conSize": "1/4\"",
         "conType": "Vm",
-        "maxDesignFlow": "",
+        "maxDesignFlow": null,
         "unit": "",
         "is_Assigned": null,
-        "chemicalName": "N2O",
+        "chemicalName": null,
         "isOutCode": null,
         "locked": null,
         "layer": "0",
@@ -78,11 +196,6 @@
             "errorName": "ID.X唯一性错误",
             "errorType": "error",
             "errorDescription": "同一属性块中:ID.B,ID.C重复"
-          },
-          {
-            "errorName": "ID唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID重复"
           }
         ]
       },
@@ -125,6 +238,42 @@
     ],
     "field": [
       {
+        "id": 34801,
+        "system_id": 8,
+        "subsystem_id": 227,
+        "fab_id": 2,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "NG.FAB2F2.2a30N-E;D09K",
+        "code": "2a30N-E;D09K",
+        "searchId": "NG;FAB2F2;2a30N-E;D09K",
+        "conSize": "6/2\"",
+        "conType": "Sw",
+        "maxDesignFlow": null,
+        "unit": "",
+        "is_Assigned": null,
+        "isOutCode": null,
+        "locked": null,
+        "vmb_type": "Type9",
+        "layer": "0",
+        "insertPointX": 3182.6764,
+        "insertPointY": 1788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "1115",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
+        "errors": [
+          {
+            "errorName": "基于SDC校验CS、CT",
+            "errorType": "error",
+            "errorDescription": "CS信息与SDC中设定不符"
+          }
+        ],
+        "idx": ""
+      },
+      {
         "id": null,
         "system_id": 8,
         "subsystem_id": 214,
@@ -157,7 +306,8 @@
             "errorType": "error",
             "errorDescription": "未包含三个字段，{sub_system};{building_level};{field} "
           }
-        ]
+        ],
+        "idx": ""
       },
       {
         "id": null,
@@ -197,7 +347,44 @@
             "errorType": "error",
             "errorDescription": "CT信息与SDC中设定不符"
           }
-        ]
+        ],
+        "idx": ""
+      },
+      {
+        "id": 35122,
+        "system_id": 8,
+        "subsystem_id": 210,
+        "fab_id": 2,
+        "building_id": 2000001,
+        "building_level": "F2",
+        "uniCode": "N2O.FAB2F2.2a29N-E;D06G",
+        "code": "2a29N-E;D06G",
+        "searchId": "N2O;FAB2F2;2a29N-E;D06G",
+        "conSize": "1/4\"",
+        "conType": "Vm",
+        "maxDesignFlow": null,
+        "unit": "",
+        "is_Assigned": null,
+        "isOutCode": null,
+        "locked": null,
+        "vmb_type": "Type7",
+        "layer": "0",
+        "insertPointX": 9182.6764,
+        "insertPointY": 5788.8648,
+        "insertPointZ": 0.0,
+        "angle": 0.0,
+        "trueColor": 256,
+        "cadBlockId": "B5D",
+        "cadBlockName": "VMB-PS",
+        "distributionBox": true,
+        "errors": [
+          {
+            "errorName": "ID唯一性错误",
+            "errorType": "error",
+            "errorDescription": "图纸中ID重复"
+          }
+        ],
+        "idx": "-2"
       },
       {
         "id": 35122,
@@ -232,47 +419,8 @@
             "errorType": "error",
             "errorDescription": "图纸中ID重复"
           }
-        ]
-      },
-      {
-        "id": 35122,
-        "system_id": 8,
-        "subsystem_id": 210,
-        "fab_id": 2,
-        "building_id": 2000001,
-        "building_level": "F2",
-        "uniCode": "N2O.FAB2F2.2a29N-E;D06G",
-        "code": "2a29N-E;D06G",
-        "searchId": "N2O;FAB2F2;2a29N-E;D06G",
-        "conSize": "1/4\"",
-        "conType": "Vm",
-        "maxDesignFlow": null,
-        "unit": "",
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": "Type7",
-        "layer": "0",
-        "insertPointX": 9182.6764,
-        "insertPointY": 5788.8648,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "B5D",
-        "cadBlockName": "VMB-PS",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "ID.X唯一性错误",
-            "errorType": "error",
-            "errorDescription": "同一属性块中:ID.B,ID.C重复"
-          },
-          {
-            "errorName": "ID唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID重复"
-          }
-        ]
+        ],
+        "idx": ""
       }
     ]
   }
