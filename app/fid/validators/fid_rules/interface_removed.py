@@ -46,6 +46,10 @@ class InterfaceRemoveCheck(BaseRule):
         # 2. 准备数据库侧数据 (DataFrame 构建与合并)
         # 使用 get 避免 KeyError，提供默认空列表
         interface_list = request_data.get('interface_list', [])
+        f_interface_list = [interface for interface in interface_list if
+                            'parent_id' in interface and interface[
+                                'tee_off_flag'] == 1]  # 过滤掉 parent_id 有值 和 tee_off_flag = 1 的 数据
+        interface_list = [interface for interface in interface_list if interface not in f_interface_list]
         field_list = request_data.get('field_list', [])
         subsystem_list = request_data.get('subsystem_list', [])
 
