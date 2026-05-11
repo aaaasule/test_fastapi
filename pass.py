@@ -1,6 +1,15 @@
-import json
+from typing import List, Any, Dict
+
 import sys
 from pathlib import Path
+
+# 将项目根目录加入 Python 路径（当前文件: app/fid/eld_check_cli.py -> 上两级到根目录）
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from app.fid.validators.base_rules import BaseRule
+from app.fid.models import CheckResult
+#from app.config.fid_config import FID_REQUIRED_FIELDS
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent
 while root_dir.name != 'app' and root_dir.parent != root_dir:
@@ -15,392 +24,185 @@ else:
 # 3. 将项目根目录加入 Python 搜索路径
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
+from app.config.fid_config import FID_REQUIRED_FIELDS
+
 from app.fid.utils.check_device import check_which_device
 
-import traceback
-from typing import List, Any, Dict
-import re
-
-def parse_interface_code(code: str) -> dict:
-    if not isinstance(code, str):
-        code = str(code)
-
-    parts = code.split(';', 3)  # 最多分割3次 → 得到最多4个部分
-
-    # 确保有4个元素，不足则补空字符串
-    while len(parts) < 4:
-        parts.append('')
-
-    return {
-        'sub_system': parts[0],
-        'building_level': parts[1],
-        'field': parts[2],
-        'id': parts[3]
-    }
+# VMB：接口 ID 属性键 ID.A ~ ID.Z（含 Z）
+_VMB_EXPECTED_ID_KEYS = tuple(f'ID.{chr(c)}' for c in range(ord('A'), ord('Z') + 1))
+# I_LINE / GPB：ID.1 ~ ID.200
+_ILINE_GPB_EXPECTED_ID_KEYS = tuple(f'ID.{i}' for i in range(1, 201))
+_ID_DETAIL_MAX_LIST = 80  # 描述中单类列表最多展示条数，超出则汇总条数
 
 
-def _infer_port_suffixes_from_equipment_keys(equipment: Dict[str, Any]) -> set:
-    """无 ID.x 时，从 CT./CS./EQU./I/O. 推断端口后缀（与 VMB / I_LINE / GPB 共用）。"""
-    inferred = set()
-    _port_prefixes = ('CT', 'CS', 'EQU', 'I/O')
-    for k in equipment:
-        if '.' not in k:
+def _id_key_sort_key(label: str):
+    """排序：数字后缀按数值，字母后缀按字典序。"""
+    suf = label.split('.', 1)[-1]
+    if suf.isdigit():
+        return (0, int(suf))
+    return (1, suf)
+
+
+def _format_id_key_list(items, max_show: int = _ID_DETAIL_MAX_LIST) -> str:
+    if len(items) <= max_show:
+        return ', '.join(items)
+    return ', '.join(items[:max_show]) + f' 等共 {len(items)} 项'
+
+
+def _port_id_key_audit(eq: Dict[str, Any], device: str):
+    """
+    按设备类型检查期望的 ID.* 是否存在且非空。
+    返回 (missing_labels, empty_labels)，无需检查则返回 None。
+    """
+    if str(device).startswith('VMB'):
+        expected = _VMB_EXPECTED_ID_KEYS
+    elif device in ('I_LINE', 'GPB'):
+        expected = _ILINE_GPB_EXPECTED_ID_KEYS
+    else:
+        return None
+
+    by_upper = {str(k).upper(): k for k in eq.keys()}
+    missing = []
+    empty = []
+    for exp in expected:
+        eu = exp.upper()
+        if eu not in by_upper:
+            missing.append(exp)
             continue
-        head, tail = k.split('.', 1)
-        if head not in _port_prefixes or not tail or '.' in tail:
-            continue
-        inferred.add(tail)
-    return inferred
+        raw_k = by_upper[eu]
+        val = eq.get(raw_k)
+        val = val.strip() if isinstance(val, str) else val
+        if val is None or val == '':
+            empty.append(exp)
+
+    if not missing and not empty:
+        return None
+    missing_s = sorted(missing, key=_id_key_sort_key)
+    empty_s = sorted(empty, key=_id_key_sort_key)
+    return missing_s, empty_s
 
 
-def parse_block_attributes(equipment, filename):
-    try:
-        # print('[parse_block_attributes] device -',check_which_device(equipment, filename))
+class FidRequiredFieldRule(BaseRule):
 
-        final_result = [{
-            "id": '',
-            "building_level": '',
-            "field": '',
-            "system": '',
-            "sub_system": '',
-            'field_code': '',
-            'field_check_code': '',
-            "interface_code": '',
-            "search_id": '',
-            "connection_size": '',
-            "connection_type": '',
-            "equipment_code": '',
-            "flow_unit": '',
-            "design_flow": '',
-            "cad_block_name": '',
-            "layer": '',
-            "insert_point_x": '',
-            "insert_point_y": '',
-            "insert_point_z": '',
-            "angle": '',
-            "true_color": '',
-            "cad_block_id": '',
-            "distribution_box": ''
-        }]
-        result = []
+    eqp_type = 'TAKEOFF'
+    rule_type = "error"
+    rule_name = "必填项缺失"
 
-        #print(f"[parse_block_attributes.py]{equipment=}")
-        equipment = {k.upper():v for k,v in equipment.items()}
-        if check_which_device(equipment, filename) is None or 'UNI_CODE' in equipment:
-            return final_result
+    def check(self, equipments: Dict[str, List[Dict[str, Any]]], device: str = None, request_data = None) -> List[CheckResult]:
+        results = []
 
-        if check_which_device(equipment, filename) == 'TAKEOFF':
-            name = str(equipment['INTERFACE_CODE'] or '')
-            try:
+        if device != None:
+            equipments = equipments[device]
 
-                sub_system, building_level, field, id_ = name.split(';', 3)
-                # print(f"{sub_system=} {building_level=} {field=} {id_=}")
-                code = parse_interface_code(name)
-                sub_system, building_level, field, id_ = code.get('sub_system'), code.get('building_level'), code.get(
-                    'field'), code.get('id')
-                # print(f"{sub_system=} {building_level=} {field=} {id_=}")
-            except:
-                sub_system, building_level, field, id_ = '', '', '', ''
-            result = [{
-                "id": id_,
-                "building_level": building_level,
-                "field": field,
-                "system": "PA",
-                "sub_system": sub_system,
-                'field_code': f'{sub_system}.{building_level}.{field}',
-                #'field_check_code': f'{sub_system};{building_level};{field}',
-                "interface_code": name,
-                "search_id": name,
-                "connection_size": equipment.get('CS', ''),
-                "connection_type": equipment.get('CT', ''),
-                "equipment_code": equipment.get('EQUIPMENT_CODE', ''),
-                "flow_unit": equipment.get('FLOW_UNIT', ''),
-                "design_flow": equipment.get('DESIGN_FLOW', ''),
-                "cad_block_name": equipment['CAD_BLOCK_NAME'],
-                "layer": equipment['LAYER'],
-                "insert_point_x": equipment['INSERT_POINT_X'],
-                "insert_point_y": equipment['INSERT_POINT_Y'],
-                "insert_point_z": equipment['INSERT_POINT_Z'],
-                "angle": equipment['ANGLE'],
-                "true_color": equipment['TRUE_COLOR'],
-                "cad_block_id": equipment['CAD_BLOCK_ID'],
-                "distribution_box": False
-            }]
+        for eq in equipments:
+            #print(device, eq)
+            missing = []
+            empty = []
 
-        elif check_which_device(equipment, filename).startswith('VMB'):
+            attrs = eq
+            device = check_which_device(eq, request_data['filename'])
 
-            result = []
+            #required_fields =
+            for field in FID_REQUIRED_FIELDS[device]:
+                if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
+                    continue
+                                                                                                                     
 
-            name = str(equipment['ID'] or '')
-            try:
-                # sub_system, building_level, field = name.split(';', 2)
-                code = parse_interface_code(name)
-                sub_system, building_level, field, id_ = code.get('sub_system'), code.get('building_level'), code.get(
-                    'field'), code.get('id')
-                if len(id_) > 0:
-                    field = f"{field};{id_}"
+                #print(f"{device} {field=}")
+                tmp_result = []
+                field_keys = []
+                for k in attrs:
+                    #print(f"37{k=}")
+                    if '.' in field and k.upper().startswith(field):
+                        #print(f'39 {field}')
+                        field_keys.append(k)
+                    elif '.' not in field and k.upper() == field:
+                        field_keys.append(k)
+                        #print(f'43 {field}')
+                #print(f"{field_keys=}")
+                #continue
 
-            except:
-                print(traceback.format_exc())
-                sub_system, building_level, field = '', '', ''
+                for _key in field_keys:
+                    #value = getattr(eq, _key.lower(), None)
+                    value = eq.get(_key)
+                    value = value.strip() if isinstance(value, str) else value
 
-            all_interface_set = set()
-            for k, v in equipment.items():
-                # if '.' in k and k.endswith(('DESIGN_FLOW', 'FLOW_UNIT')):
-                #     _k = k.split('.')[0]
-                #     if _k not in all_interface_set:
-                #         all_interface_set.add(_k)
-                # elif '.' in k and k.startswith(('EQU', 'ID', 'CS', 'CT', 'I/O')) and k not in ['ID_SHORT']:
-                #     _k = k.split('.')[-1]
-                #     if _k not in all_interface_set:
-                #         all_interface_set.add(_k)
+                    # if _key == 'GASNAME':
+                    #     print(f"GASNAME {eq=}")
+                    #     print(f"GASNAME {value=}")
 
-                if '.' in k and k.startswith('ID') and k not in ['ID_SHORT']:
-                    _k = k.split('.')[-1]
-                    if _k not in all_interface_set:
-                        all_interface_set.add(_k)
-
-            # 无 ID.x 时（仅 CT./CS./EQU. 等），仍按端口后缀展开，避免 result 为空退回 final_result 导致聚合结果无关键属性
-            if len(all_interface_set) == 0:
-                all_interface_set.update(_infer_port_suffixes_from_equipment_keys(equipment))
-
-            #print(f"{all_interface_set=}")
-            if len(all_interface_set) == 0:
-                print(f'没有接口，没识别到任何信息:{equipment=}')
-
-            for _id in sorted(all_interface_set):
-                IDx = equipment.get(f'ID.{_id}')
-                _result = {
-                    "vmb-type": equipment.get('VMB-TYPE') or equipment.get('GC-TYPE'),
-                    "building_level": building_level,
-                    "field": field,
-                    "system": "PC",
-                    "sub_system": sub_system,
-                    "field_code": f"{sub_system}.{building_level}.{field}",
-                    #"field_code": name,
-                    "interface_code": f"{equipment.get('ID') or ''}-{IDx}" if IDx not in [None, ''] else f"{equipment.get('ID') or ''}-{_id}",
-                    "search_id": f"{sub_system};{building_level};{field}",
-                    'id': f"{IDx or ''}" if IDx != None else f"{_id or ''}",
-                    "connection_size": equipment.get(f'CS.{_id}', ''),
-                    "connection_type": equipment.get(f'CT.{_id}', ''),
-                    "equipment_code": equipment.get(f'EQU.{_id}', ''),
-                    "I/O": equipment.get(f'I/O.{_id}'),
-                    'x': _id,
-                    "IDx": IDx,
-                    "flow_unit": equipment.get(f'{_id}.FLOW_UNIT', ''),
-                    "design_flow": equipment.get(f'{_id}.DESIGN_FLOW', ''),
-                    "cad_block_name": equipment['CAD_BLOCK_NAME'],
-                    "layer": equipment['LAYER'],
-                    "insert_point_x": equipment['INSERT_POINT_X'],
-                    "insert_point_y": equipment['INSERT_POINT_Y'],
-                    "insert_point_z": equipment['INSERT_POINT_Z'],
-                    "angle": equipment['ANGLE'],
-                    "true_color": equipment['TRUE_COLOR'],
-                    "cad_block_id": equipment['CAD_BLOCK_ID'],
-                    "distribution_box": True
-                }
-                # print(f"{_id=}")
-                # print(f"{equipment.get('ID') or ''}-{IDx}")
-                # print(IDx is not None)
-                # print(f"{equipment.get('ID') or ''}-{_id}")
-                # print('[parser block]interfacecode-', '|', f"{equipment.get('ID') or ''}", '|', IDx is not None, '|',
-                #       f"{equipment.get('ID', '')}-{IDx}", '|', f"{equipment.get('ID', '')}-{_id}")
-                # print(f"{equipment=}")
-                # print('-' * 100)
-                if 'CHEMICALNAME' in equipment:
-                    _result['chemical_name'] = equipment.get('CHEMICALNAME')
-                else:
-                    _result['gas_name'] = equipment.get('GASNAME')
-                result.append(_result)
+                    if value == None:
+                        missing.append(_key)
+                    if value == "":
+                        empty.append(_key)
 
 
-        elif check_which_device(equipment, filename) in ['I_LINE', 'GPB']:
+                if len(field_keys) == 0:
 
-            result = []
-            name = str(equipment['ID'] or '')
-            try:
-                # sub_system, building_level, field = name.split(';', 2)
-                code = parse_interface_code(name)
-                sub_system, building_level, field, id_ = code.get('sub_system'), code.get('building_level'), code.get(
-                    'field'), code.get('id')
-                if len(id_) > 0:
-                    field = f"{field};{id_}"
-            except:
-                sub_system, building_level, field = '', '', ''
+                    #eq['detail'] =
+                    results.append(CheckResult(
+                        type=self.rule_type,
+                        name="关键属性缺失",
+                        description=f"丢失关键业务属性：{field}",
+                        detail=f"丢失关键业务属性：{field}",
+                        equipment=[eq],
+                        device=device
+                    ))
 
-            all_interface_set = set()
-            for k, v in equipment.items():
-                # if '.' in k and k.endswith(('DESIGN_FLOW', 'FLOW_UNIT')):
-                #     _k = k.split('.')[0]
-                #     if _k not in all_interface_set:
-                #         all_interface_set.add(_k)
-                # elif '.' in k and k.startswith(('EQU', 'ID', 'CS', 'CT', 'I/O')) and k not in ['ID_SHORT']:
-                #     _k = k.split('.')[-1]
-                #     if _k not in all_interface_set:
-                #         all_interface_set.add(_k)
-                if '.' in k and k.startswith('ID') and k not in ['ID_SHORT']:
-                    _k = k.split('.')[-1]
-                    if _k not in all_interface_set:
-                        all_interface_set.add(_k)
+                    print(f"{device=} 未存在必填字段{field=} {field_keys=}")
+                    print(f"丢失关键业务属性field_keys eq = {eq}")
 
-            if len(all_interface_set) == 0:
-                all_interface_set.update(_infer_port_suffixes_from_equipment_keys(equipment))
+            #print(f"{missing=}")
+            #print(f"{empty=}")
 
-            # PS、PC and distribution=True 带横杠  interface   sub_system;buildinglevel;
-            # field_code: field
-            # field_unicode  ; 变成.    sub_system.buildinglevel.field
+            if missing:
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="关键属性丢失",
+                    description=f"丢失关键业务属性：{', '.join(missing)}",
+                    detail=f"丢失关键业务属性：{', '.join(missing)}",
+                    equipment=[eq],
+                    device=device
+                ))
+                print(f"丢失关键业务属性missing eq = {eq}")
 
-            # interface 拼的是unicode
-            # code  interface最后一个 - 或者 ; 后面的
+            if empty:
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="必填项缺失",
+                    description=f"必填项未填写：{', '.join(empty)}",
+                    detail=f"必填项未填写：{', '.join(empty)}",
+                    equipment=[eq],
+                    device=device,
+                    field_or_interface='interface'
+                ))
+                #print(eq)
 
-            for _id in sorted(all_interface_set):
-                IDx = equipment.get(f'ID.{_id}')
-                # print(f"{IDx=} {_id=}")
-                _result = {
-                    "building_level": building_level,
-                    "field": equipment.get('ID_SHORT'),
-                    "system": "PC",
-                    "sub_system": sub_system,
-                    "interface_code": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{IDx}" if IDx not in [None, ''] else f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{_id}",
-                    'id': f"{IDx}" if IDx != None else f"{_id}",
-                    "field_code": f"{sub_system}.{building_level}.{equipment.get('ID_SHORT')}",
-                    "search_id": equipment.get('ID_SHORT') or '',
-                    "connection_size": equipment.get(f'CS.{_id}', ''),
-                    "connection_type": equipment.get(f'CT.{_id}', ''),
-                    "equipment_code": equipment.get(f'EQU.{_id}', ''),
-                    "cad_block_name": equipment['CAD_BLOCK_NAME'],
-                    "layer": equipment['LAYER'],
-                    "insert_point_x": equipment['INSERT_POINT_X'],
-                    "insert_point_y": equipment['INSERT_POINT_Y'],
-                    "insert_point_z": equipment['INSERT_POINT_Z'],
-                    "angle": equipment['ANGLE'],
-                    "true_color": equipment['TRUE_COLOR'],
-                    "cad_block_id": equipment['CAD_BLOCK_ID'],
-                    "distribution_box": True
-                }
+            id_audit = _port_id_key_audit(eq, device)
+            if id_audit:
+                missing_ids, empty_ids = id_audit
+                parts = []
+                if missing_ids:
+                    parts.append(
+                        f"缺少以下接口 ID 属性键（图中不存在）：{_format_id_key_list(missing_ids)}"
+                    )
+                if empty_ids:
+                    parts.append(
+                        f"以下接口 ID 属性键未填写值：{_format_id_key_list(empty_ids)}"
+                    )
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="接口ID缺失明细",
+                    description="；".join(parts),
+                    detail="；".join(parts),
+                    equipment=[eq],
+                    device=device,
+                    field_or_interface='interface',
+                ))
+        #print(f"{results=}")
 
-                result.append(_result)
-        elif check_which_device(equipment, filename) == 'NEW_INTER_':  # 新接口
-            # print(check_which_device(equipment), equipment)
-            result = []
-            name = str(equipment['ID'] or '')
-            try:
-                # sub_system, building_level, _ = name.split(';', 2)
-                code = parse_interface_code(name)
-                sub_system, building_level, field, id_ = code.get('sub_system'), code.get('building_level'), code.get(
-                    'field'), code.get('id')
+        return results
 
-            except:
-                sub_system, building_level, _ = '', '', ''
-
-            field = (equipment.get('ID_SHORT') or '').split(';')[0]
-
-            all_interface_set = set()
-            for k, v in equipment.items():
-                # if '.' in k and k.endswith(('DESIGN_FLOW', 'FLOW_UNIT')):
-                #     _k = k.split('.')[0]
-                #     if _k not in all_interface_set:
-                #         all_interface_set.add(_k)
-                # elif '.' in k and k.startswith(('EQU', 'ID', 'CS', 'CT', 'I/O')) and k not in ['ID_SHORT']:
-                #     _k = k.split('.')[-1]
-                #     if _k not in all_interface_set:
-                #         all_interface_set.add(_k)
-                if '.' in k and k.startswith('ID') and k not in ['ID_SHORT']:
-                    _k = k.split('.')[-1]
-                    if _k not in all_interface_set:
-                        all_interface_set.add(_k)
-                    # 有ID_short 有ID.x 是老版本接口， ID_short后面有接口ID, 需要删除
-
-            if len(all_interface_set) != 0:
-                for _id in all_interface_set:
-                    IDx = equipment.get(f'ID.{_id}')
-                    _result = {
-                        "building_level": building_level,
-                        "field": field,
-                        "system": "ES",
-                        "sub_system": sub_system,
-                        "interface_code": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{IDx or _id or ''}",
-                        "search_id": equipment.get('ID_SHORT') or '',
-                        'id': f"{_id}",
-                        'field_code': f'{sub_system}.{building_level}.{field}',
-                        "connection_size": equipment.get(f'CS.{_id}', ''),
-                        "connection_type": equipment.get(f'CT.{_id}', ''),
-                        "equipment_code": equipment.get(f'EQU.{_id}', ''),
-                        "cad_block_name": equipment['CAD_BLOCK_NAME'],
-                        "layer": equipment['LAYER'],
-                        "insert_point_x": equipment['INSERT_POINT_X'],
-                        "insert_point_y": equipment['INSERT_POINT_Y'],
-                        "insert_point_z": equipment['INSERT_POINT_Z'],
-                        "angle": equipment['ANGLE'],
-                        "true_color": equipment['TRUE_COLOR'],
-                        "cad_block_id": equipment['CAD_BLOCK_ID'],
-                        "distribution_box": True
-                    }
-                    result.append(_result)
-            else:
-                result = [
-                    {
-                        "building_level": building_level,
-                        "field": field,
-                        "system": "ES",
-                        "sub_system": sub_system,
-                        "interface_code": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''}",
-                        "search_id": equipment.get('ID_SHORT') or '',
-                        'id': f"{(equipment.get('ID_SHORT', '') or '').split(';')[-1]}",
-                        'field_code': f'{sub_system}.{building_level}.{field}',
-                        "connection_size": equipment.get(f'CS', ''),
-                        "connection_type": equipment.get(f'CT', ''),
-                        "equipment_code": equipment.get(f'EQU', ''),
-                        "cad_block_name": equipment['CAD_BLOCK_NAME'],
-                        "layer": equipment['LAYER'],
-                        "insert_point_x": equipment['INSERT_POINT_X'],
-                        "insert_point_y": equipment['INSERT_POINT_Y'],
-                        "insert_point_z": equipment['INSERT_POINT_Z'],
-                        "angle": equipment['ANGLE'],
-                        "true_color": equipment['TRUE_COLOR'],
-                        "cad_block_id": equipment['CAD_BLOCK_ID'],
-                        "distribution_box": True
-                    }
-                ]
-
-        #BUS-F22-1-N2-11-J24;01
-        return result if len(result) > 0 else final_result
-    except Exception as e:
-        print(f"{equipment=}")
-        print(f"{filename=}")
-        print(traceback.format_exc())
-        # raise Exception(str(e))
-        return [{
-            "id": '',
-            "building_level": '',
-            "field": '',
-            "system": '',
-            "sub_system": '',
-            'field_code': '',
-            "interface_code": '',
-            "search_id": '',
-            "connection_size": '',
-            "connection_type": '',
-            "equipment_code": '',
-            "flow_unit": '',
-            "design_flow": '',
-            "cad_block_name": '',
-            "layer": '',
-            "insert_point_x": '',
-            "insert_point_y": '',
-            "insert_point_z": '',
-            "angle": '',
-            "true_color": '',
-            "cad_block_id": '',
-            "distribution_box": ''
-        }]
 
 if __name__ == '__main__':
-    from pathlib import Path
-    eq = {'UTILIZATION_RATIO': '', 'FLOW_UNIT': '', 'DESIGN_FLOW': '', 'EQUIPMENT_CODE': '', 'INTERFACE_CODE': 'D-WwWA;WSF2;B;04', 'CS': '2"', 'CT': 'Pi', 'CAD_BLOCK_NAME': 'SEMISOFT-POC', 'LAYER': 'D-WWA', 'ANGLE': 89.99999999999999, 'TRUE_COLOR': 8, 'INSERT_POINT_X': 5480.9238, 'INSERT_POINT_Y': 14840.8932, 'INSERT_POINT_Z': 0.0, 'CENTER_POINT_X': 5480.9238, 'CENTER_POINT_Y': 14840.8932, 'CAD_BLOCK_ID': '1BEE8', 'DISTRIBUTION_BOX': False}
-
-
-    result = parse_block_attributes(eq, 'YMTC^FID^PA^WS^F2.dxf')
-    print(f"{result=}")
-    for r in result:
-        print(r['interface_code'])
+    pass
