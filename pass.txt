@@ -28,3 +28,49 @@ sudo docker run --rm -it \
   --name merge_app_1.4 \
   merger_env_1.4 \
   python3 -X faulthandler main.py  看看哪块坏了，用这个命令
+
+
+(base) [devadmin@tmit1efms02 merge_interface_v2]$ lsof -i:8000
+(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker run --rm -it \
+>   -p 8000:8000 \
+>   -v "$(pwd)":/app/merge_interface \
+>   -w /app/merge_interface \
+>   -e OPENBLAS_NUM_THREADS=1 \
+>   -e OMP_NUM_THREADS=1 \
+>   -e MKL_NUM_THREADS=1 \
+>   -e NUMEXPR_NUM_THREADS=1 \
+>   -e PYTHONFAULTHANDLER=1 \
+>   --pids-limit=-1 \
+>   --name merge_app_1.4 \
+>   merger_env_1.4 \
+>   python3 -X faulthandler main.py
+env_path=PosixPath('/app/merge_interface/global_config/env')
+is_loaded=True
+正在启动服务，端口：8000
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+Fatal Python error: Aborted
+
+Current thread 0x00007f8d12abe000 (most recent call first):
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/server.py", line 164 in startup
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/server.py", line 86 in _serve
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/server.py", line 71 in serve
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/_compat.py", line 60 in asyncio_run
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/server.py", line 67 in run
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/main.py", line 594 in run
+  File "/app/merge_interface/main.py", line 41 in <module>
+
+Extension modules: numpy.core._multiarray_umath, numpy.core._multiarray_tests, numpy.linalg._umath_linalg, numpy.fft._pocketfft_internal, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._mt19937, numpy.random.mtrand, numpy.random._philox, numpy.random._pcg64, numpy.random._sfc64, numpy.random._generator, lxml._elementpath, lxml.etree, PIL._imaging, uvloop.loop, httptools.parser.parser, httptools.parser.url_parser, websockets.speedups (total: 20)
+Fatal Python error: Segmentation fault
+
+Current thread 0x00007f8d12abe000 (most recent call first):
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/server.py", line 164 in startup
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/server.py", line 86 in _serve
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/server.py", line 71 in serve
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/_compat.py", line 60 in asyncio_run
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/server.py", line 67 in run
+  File "/usr/local/lib/python3.10/dist-packages/uvicorn/main.py", line 594 in run
+  File "/app/merge_interface/main.py", line 41 in <module>
+
+Extension modules: numpy.core._multiarray_umath, numpy.core._multiarray_tests, numpy.linalg._umath_linalg, numpy.fft._pocketfft_internal, numpy.random._common, numpy.random.bit_generator, numpy.random._bounded_integers, numpy.random._mt19937, numpy.random.mtrand, numpy.random._philox, numpy.random._pcg64, numpy.random._sfc64, numpy.random._generator, lxml._elementpath, lxml.etree, PIL._imaging, uvloop.loop, httptools.parser.parser, httptools.parser.url_parser, websockets.speedups (total: 20)
