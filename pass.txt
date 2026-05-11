@@ -15,45 +15,16 @@ sudo docker run -d \
 
 
 
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker images
-REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
-merger_env_1.4      latest              8c406ddc4a09        3 days ago          3.11 GB
-merge-env           latest              809af650098a        2 months ago        2.29 GB
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ lsof -i:8000
-COMMAND    PID     USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
-python3 104921 devadmin   12u  IPv4 74961059      0t0  TCP *:irdmi (LISTEN)
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ kill -9 104921
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ lsof -i:8000
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker run -d \
->   -p 8000:8000 \
->   -v "$(pwd)":/app/merge_interface \
->   -w /app/merge_interface \
->   -e OPENBLAS_NUM_THREADS=1 \
->   -e OMP_NUM_THREADS=1 \
->   -e MKL_NUM_THREADS=1 \
->   -e NUMEXPR_NUM_THREADS=1 \
->   --pids-limit=-1 \
->   --name merge_app_1.4 \
->   merger_env_1.4 \
->   python3 main.py
-a2e5a85cf70f1b37a33e9b07ee4a9a17ad84a8c144117e6320cdfa1a761ece2f
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker ps -a
-CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                       PORTS                    NAMES
-a2e5a85cf70f        merger_env_1.4      "python3 main.py"   7 seconds ago       Exited (139) 5 seconds ago                            merge_app_1.4
-f669cb4ec44a        merge-env           "python3 main.py"   2 months ago        Up 2 months                  0.0.0.0:8002->8000/tcp   test-api
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ docker logs merge+app_1.4
-Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get http://%2Fvar%2Frun%2Fdocker.sock/v1.26/containers/merge+app_1.4/json: dial unix /var/run/docker.sock: connect: permission denied
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker logs merge+app_1.4
-Error: No such container: merge+app_1.4
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker logs merge_app_1.4
-INFO:     Started server process [1]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker ps -a
-CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                        PORTS                    NAMES
-a2e5a85cf70f        merger_env_1.4      "python3 main.py"   54 seconds ago      Exited (139) 52 seconds ago                            merge_app_1.4
-f669cb4ec44a        merge-env           "python3 main.py"   2 months ago        Up 2 months                   0.0.0.0:8002->8000/tcp   test-api
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker logs merge_app_1.4
-INFO:     Started server process [1]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
+sudo docker run --rm -it \
+  -p 8000:8000 \
+  -v "$(pwd)":/app/merge_interface \
+  -w /app/merge_interface \
+  -e OPENBLAS_NUM_THREADS=1 \
+  -e OMP_NUM_THREADS=1 \
+  -e MKL_NUM_THREADS=1 \
+  -e NUMEXPR_NUM_THREADS=1 \
+  -e PYTHONFAULTHANDLER=1 \
+  --pids-limit=-1 \
+  --name merge_app_1.4 \
+  merger_env_1.4 \
+  python3 -X faulthandler main.py  看看哪块坏了，用这个命令
