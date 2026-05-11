@@ -1,273 +1,54 @@
-{
-  "code": 200,
-  "message": "调用成功",
-  "success": false,
-  "data": {
-    "interfaces": [
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": 35418,
-        "fab_id": 2,
-        "building_id": 2000001,
-        "building_level": "F2",
-        "uniCode": "H;FAB2F2;2a27L-W;D13E-B",
-        "code": "B",
-        "field_code": "H.FAB2F2.2a27L-W;D13E",
-        "searchId": "H;FAB2F2;2a27L-W;D13E",
-        "conSize": "1/4\"",
-        "conType": "CFA",
-        "maxDesignFlow": "",
-        "unit": "",
-        "is_Assigned": null,
-        "chemicalName": "H",
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 5182.6764,
-        "insertPointY": 5788.8648,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "A8C",
-        "cadBlockName": "VMB-PS",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "基于SDC校验Sub_system",
-            "errorType": "error",
-            "errorDescription": "sub_system与SDC中设定不符"
-          },
-          {
-            "errorName": "基于SDC校验CS、CT",
-            "errorType": "error",
-            "errorDescription": "CT信息与SDC中设定不符"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": 35122,
-        "fab_id": 2,
-        "building_id": 2000001,
-        "building_level": "F2",
-        "uniCode": "N2O;FAB2F2;2a29N-E;D06G-2",
-        "code": "2a29N-E;D06G",
-        "field_code": "N2O.FAB2F2.2a29N-E;D06G",
-        "searchId": "N2O;FAB2F2;2a29N-E;D06G",
-        "conSize": "1/4\"",
-        "conType": "Vm",
-        "maxDesignFlow": null,
-        "unit": "",
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 9182.6764,
-        "insertPointY": 5788.8648,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "B5D",
-        "cadBlockName": "VMB-PS",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "ID.X唯一性错误",
-            "errorType": "error",
-            "errorDescription": "同一属性块中:ID.B,ID.C重复"
-          }
-        ]
-      },
-      {
-        "id": null,
-        "parent_id": "",
-        "field_id": 35544,
-        "fab_id": 2,
-        "building_id": 2000001,
-        "building_level": "F2",
-        "uniCode": "CH4;FAB2F2;2a01G-W;E01E",
-        "code": "2a01G-W;E01E",
-        "field_code": "CH4.FAB2F2.2a01G-W;E01E",
-        "searchId": "CH4;FAB2F2;2a01G-W;E01E",
-        "conSize": "1/4\"",
-        "conType": "Vm",
-        "maxDesignFlow": null,
-        "unit": "",
-        "is_Assigned": null,
-        "chemicalName": null,
-        "isOutCode": null,
-        "locked": null,
-        "layer": "0",
-        "insertPointX": 1182.6764,
-        "insertPointY": 5788.8648,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "7ED",
-        "cadBlockName": "VMB-PS",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "必填项缺失",
-            "errorType": "error",
-            "errorDescription": "必填项未填写：CT.C"
-          }
-        ]
-      }
-    ],
-    "field": [
-      {
-        "id": null,
-        "system_id": 8,
-        "subsystem_id": 214,
-        "fab_id": 2,
-        "building_id": 2000001,
-        "building_level": "F2",
-        "uniCode": "SiH4.FAB2F2.2a27L-W",
-        "code": "2a27L-W",
-        "searchId": "SiH4;FAB2F2;2a27L-W",
-        "conSize": "1/4\"",
-        "conType": "Vm",
-        "maxDesignFlow": null,
-        "unit": "",
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": "Type5",
-        "layer": "0",
-        "insertPointX": 3182.6764,
-        "insertPointY": 5788.8648,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "A4F",
-        "cadBlockName": "VMB-PS",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "ID规范性错误",
-            "errorType": "error",
-            "errorDescription": "未包含三个字段，{sub_system};{building_level};{field} "
-          }
-        ],
-        "idx": ""
-      },
-      {
-        "id": null,
-        "system_id": 8,
-        "subsystem_id": null,
-        "fab_id": 2,
-        "building_id": 2000001,
-        "building_level": "F2",
-        "uniCode": "H.FAB2F2.2a27L-W;D13E",
-        "code": "2a27L-W;D13E",
-        "searchId": "H;FAB2F2;2a27L-W;D13E",
-        "conSize": "1/4\"",
-        "conType": "Vm",
-        "maxDesignFlow": null,
-        "unit": "",
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": "Type5",
-        "layer": "0",
-        "insertPointX": 5182.6764,
-        "insertPointY": 5788.8648,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "A8C",
-        "cadBlockName": "VMB-PS",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "基于SDC校验Sub_system",
-            "errorType": "error",
-            "errorDescription": "sub_system与SDC中设定不符"
-          },
-          {
-            "errorName": "基于SDC校验CS、CT",
-            "errorType": "error",
-            "errorDescription": "CT信息与SDC中设定不符"
-          }
-        ],
-        "idx": ""
-      },
-      {
-        "id": 35122,
-        "system_id": 8,
-        "subsystem_id": 210,
-        "fab_id": 2,
-        "building_id": 2000001,
-        "building_level": "F2",
-        "uniCode": "N2O.FAB2F2.2a29N-E;D06G",
-        "code": "2a29N-E;D06G",
-        "searchId": "N2O;FAB2F2;2a29N-E;D06G",
-        "conSize": "1/4\"",
-        "conType": "Vm",
-        "maxDesignFlow": null,
-        "unit": "",
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": "Type7",
-        "layer": "0",
-        "insertPointX": 9182.6764,
-        "insertPointY": 5788.8648,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "B5D",
-        "cadBlockName": "VMB-PS",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "ID唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID重复"
-          }
-        ],
-        "idx": "-2"
-      },
-      {
-        "id": 35122,
-        "system_id": 8,
-        "subsystem_id": 210,
-        "fab_id": 2,
-        "building_id": 2000001,
-        "building_level": "F2",
-        "uniCode": "N2O.FAB2F2.2a29N-E;D06G",
-        "code": "2a29N-E;D06G",
-        "searchId": "N2O;FAB2F2;2a29N-E;D06G",
-        "conSize": "1/4\"",
-        "conType": "Vm",
-        "maxDesignFlow": null,
-        "unit": "",
-        "is_Assigned": null,
-        "isOutCode": null,
-        "locked": null,
-        "vmb_type": "Type7",
-        "layer": "0",
-        "insertPointX": 7182.6764,
-        "insertPointY": 5788.8648,
-        "insertPointZ": 0.0,
-        "angle": 0.0,
-        "trueColor": 256,
-        "cadBlockId": "B20",
-        "cadBlockName": "VMB-PS",
-        "distributionBox": true,
-        "errors": [
-          {
-            "errorName": "ID唯一性错误",
-            "errorType": "error",
-            "errorDescription": "图纸中ID重复"
-          }
-        ],
-        "idx": ""
-      }
-    ]
-  }
-}
+OpenBLAS blas_thread_init: pthread_create failed for thread 1 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 2 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 3 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 4 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 5 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 6 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 7 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 8 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 9 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 10 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 11 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 12 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 13 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 14 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+OpenBLAS blas_thread_init: pthread_create failed for thread 15 of 16: Operation not permitted
+OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
+env_path=PosixPath('/app/merge_interface/global_config/env')
+is_loaded=True
+Traceback (most recent call last):
+  File "/app/merge_interface/main.py", line 7, in <module>
+    from app.hdc.api import router as hdc_router
+  File "/app/merge_interface/app/hdc/api.py", line 11, in <module>
+    from app.hdc.svg_2_pdf.python_file.excel_converter import json_to_pdf
+  File "/app/merge_interface/app/hdc/svg_2_pdf/python_file/excel_converter.py", line 14, in <module>
+    from openpyxl.utils.cell import get_column_letter, range_boundaries
+  File "/usr/local/lib/python3.10/dist-packages/openpyxl/__init__.py", line 5, in <module>
+    from openpyxl.compat.numbers import NUMPY
+  File "/usr/local/lib/python3.10/dist-packages/openpyxl/compat/__init__.py", line 3, in <module>
+    from .numbers import NUMERIC_TYPES
+  File "/usr/local/lib/python3.10/dist-packages/openpyxl/compat/numbers.py", line 9, in <module>
+    import numpy
+  File "/usr/local/lib/python3.10/dist-packages/numpy/__init__.py", line 140, in <module>
+    from . import core
+  File "/usr/local/lib/python3.10/dist-packages/numpy/core/__init__.py", line 23, in <module>
+    from . import multiarray
+  File "/usr/local/lib/python3.10/dist-packages/numpy/core/multiarray.py", line 10, in <module>
+    from . import overrides
+  File "/usr/local/lib/python3.10/dist-packages/numpy/core/overrides.py", line 6, in <module>
+    from numpy.core._multiarray_umath import (
+KeyboardInterrupt
