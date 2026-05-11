@@ -1,54 +1,14 @@
-OpenBLAS blas_thread_init: pthread_create failed for thread 1 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 2 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 3 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 4 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 5 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 6 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 7 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 8 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 9 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 10 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 11 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 12 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 13 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 14 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-OpenBLAS blas_thread_init: pthread_create failed for thread 15 of 16: Operation not permitted
-OpenBLAS blas_thread_init: RLIMIT_NPROC 1048576 current, 1048576 max
-env_path=PosixPath('/app/merge_interface/global_config/env')
-is_loaded=True
-Traceback (most recent call last):
-  File "/app/merge_interface/main.py", line 7, in <module>
-    from app.hdc.api import router as hdc_router
-  File "/app/merge_interface/app/hdc/api.py", line 11, in <module>
-    from app.hdc.svg_2_pdf.python_file.excel_converter import json_to_pdf
-  File "/app/merge_interface/app/hdc/svg_2_pdf/python_file/excel_converter.py", line 14, in <module>
-    from openpyxl.utils.cell import get_column_letter, range_boundaries
-  File "/usr/local/lib/python3.10/dist-packages/openpyxl/__init__.py", line 5, in <module>
-    from openpyxl.compat.numbers import NUMPY
-  File "/usr/local/lib/python3.10/dist-packages/openpyxl/compat/__init__.py", line 3, in <module>
-    from .numbers import NUMERIC_TYPES
-  File "/usr/local/lib/python3.10/dist-packages/openpyxl/compat/numbers.py", line 9, in <module>
-    import numpy
-  File "/usr/local/lib/python3.10/dist-packages/numpy/__init__.py", line 140, in <module>
-    from . import core
-  File "/usr/local/lib/python3.10/dist-packages/numpy/core/__init__.py", line 23, in <module>
-    from . import multiarray
-  File "/usr/local/lib/python3.10/dist-packages/numpy/core/multiarray.py", line 10, in <module>
-    from . import overrides
-  File "/usr/local/lib/python3.10/dist-packages/numpy/core/overrides.py", line 6, in <module>
-    from numpy.core._multiarray_umath import (
-KeyboardInterrupt
+sudo docker rm -f merge_app_1.4
+
+sudo docker run -d \
+  -p 8000:8000 \
+  -v "$(pwd)":/app/merge_interface \
+  -w /app/merge_interface \
+  -e OPENBLAS_NUM_THREADS=1 \
+  -e OMP_NUM_THREADS=1 \
+  -e MKL_NUM_THREADS=1 \
+  -e NUMEXPR_NUM_THREADS=1 \
+  --pids-limit=-1 \
+  --name merge_app_1.4 \
+  merger_env_1.4 \
+  python3 main.py
