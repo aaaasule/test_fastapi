@@ -41,3 +41,24 @@ sudo docker run --rm -it \
   -e NUMEXPR_NUM_THREADS=1 \
   merger_env_1.4 \
   python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --loop asyncio --http h11 --workers 1
+
+
+
+sudo docker run --rm -it \
+  --name merge_app_1.4 \
+  --pids-limit=-1 \
+  --ulimit nproc=65535:65535 \
+  --ulimit nofile=65535:65535 \
+  --shm-size=1g \
+  -p 8000:8000 \
+  -v "$(pwd)":/app/merge_interface \
+  -w /app/merge_interface \
+  -e OPENBLAS_NUM_THREADS=1 \
+  -e OMP_NUM_THREADS=1 \
+  -e MKL_NUM_THREADS=1 \
+  -e NUMEXPR_NUM_THREADS=1 \
+  -e VECLIB_MAXIMUM_THREADS=1 \
+  -e BLIS_NUM_THREADS=1 \
+  -e MALLOC_ARENA_MAX=2 \
+  merger_env_1.4 \
+  python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --loop asyncio --http h11 --workers 1
