@@ -28,58 +28,67 @@ from app.config.fid_config import FID_REQUIRED_FIELDS
 
 from app.fid.utils.check_device import check_which_device
 
-# VMB：接口 ID 属性键 ID.A ~ ID.Z（含 Z）
-_VMB_EXPECTED_ID_KEYS = tuple(f'ID.{chr(c)}' for c in range(ord('A'), ord('Z') + 1))
-# I_LINE / GPB：ID.1 ~ ID.200
-_ILINE_GPB_EXPECTED_ID_KEYS = tuple(f'ID.{i}' for i in range(1, 201))
-_ID_DETAIL_MAX_LIST = 80  # 描述中单类列表最多展示条数，超出则汇总条数
+# 由端口键推导必须存在的 ID.{suffix}：仅 EQU.x / CT.x / CS.x（与业务约定一致）
+_CT_CS_EQU_PREFIXES = ('CT', 'CS', 'EQU')
+_ID_DETAIL_MAX_LIST = 80
 
 
-def _id_key_sort_key(label: str):
-    """排序：数字后缀按数值，字母后缀按字典序。"""
-    suf = label.split('.', 1)[-1]
-    if suf.isdigit():
-        return (0, int(suf))
-    return (1, suf)
+def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any]) -> set:
+    """从 EQU.{suffix}、CT.{suffix}、CS.{suffix} 收集端口后缀（suffix 不含点）。"""
+    out = set()
+    for k in eq:
+        if '.' not in k:
+            continue
+        ku = str(k).upper()
+        head, tail = ku.split('.', 1)
+        if head not in _CT_CS_EQU_PREFIXES or not tail or '.' in tail:
+            continue
+        out.add(tail)
+    return out
 
 
-def _format_id_key_list(items, max_show: int = _ID_DETAIL_MAX_LIST) -> str:
-    if len(items) <= max_show:
-        return ', '.join(items)
-    return ', '.join(items[:max_show]) + f' 等共 {len(items)} 项'
+def _suffix_sort_key(s: str):
+    if s.isdigit():
+        return (0, int(s), len(s), s)
+    return (1, s)
 
 
-def _port_id_key_audit(eq: Dict[str, Any], device: str):
+def _format_id_label_list(labels, max_show: int = _ID_DETAIL_MAX_LIST) -> str:
+    if len(labels) <= max_show:
+        return ', '.join(labels)
+    return ', '.join(labels[:max_show]) + f' 等共 {len(labels)} 项'
+
+
+def _id_required_by_port_keys_audit(eq: Dict[str, Any], device: str):
     """
-    按设备类型检查期望的 ID.* 是否存在且非空。
+    VMB / I_LINE / GPB：若存在 EQU.x、CT.x、CS.x，则必须有 ID.x 且非空。
     返回 (missing_labels, empty_labels)，无需检查则返回 None。
     """
-    if str(device).startswith('VMB'):
-        expected = _VMB_EXPECTED_ID_KEYS
-    elif device in ('I_LINE', 'GPB'):
-        expected = _ILINE_GPB_EXPECTED_ID_KEYS
-    else:
+    if not (str(device).startswith('VMB') or device in ('I_LINE', 'GPB')):
+        return None
+
+    suffixes = _port_suffixes_from_equ_ct_cs(eq)
+    if not suffixes:
         return None
 
     by_upper = {str(k).upper(): k for k in eq.keys()}
     missing = []
     empty = []
-    for exp in expected:
-        eu = exp.upper()
-        if eu not in by_upper:
-            missing.append(exp)
+    for suf in sorted(suffixes, key=_suffix_sort_key):
+        id_label = f'ID.{suf}'
+        id_u = id_label.upper()
+        if id_u not in by_upper:
+            missing.append(id_label)
             continue
-        raw_k = by_upper[eu]
+        raw_k = by_upper[id_u]
         val = eq.get(raw_k)
         val = val.strip() if isinstance(val, str) else val
         if val is None or val == '':
-            empty.append(exp)
+            empty.append(id_label)
 
     if not missing and not empty:
         return None
-    missing_s = sorted(missing, key=_id_key_sort_key)
-    empty_s = sorted(empty, key=_id_key_sort_key)
-    return missing_s, empty_s
+    return missing, empty
 
 
 class FidRequiredFieldRule(BaseRule):
@@ -178,17 +187,17 @@ class FidRequiredFieldRule(BaseRule):
                 ))
                 #print(eq)
 
-            id_audit = _port_id_key_audit(eq, device)
+            id_audit = _id_required_by_port_keys_audit(eq, device)
             if id_audit:
-                missing_ids, empty_ids = id_audit
+                miss_ids, empty_ids = id_audit
                 parts = []
-                if missing_ids:
+                if miss_ids:
                     parts.append(
-                        f"缺少以下接口 ID 属性键（图中不存在）：{_format_id_key_list(missing_ids)}"
+                        f"端口已定义（EQU/CT/CS）但缺少对应接口 ID 键：{_format_id_label_list(miss_ids)}"
                     )
                 if empty_ids:
                     parts.append(
-                        f"以下接口 ID 属性键未填写值：{_format_id_key_list(empty_ids)}"
+                        f"以下接口 ID 键未填写值：{_format_id_label_list(empty_ids)}"
                     )
                 results.append(CheckResult(
                     type=self.rule_type,
