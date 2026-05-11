@@ -39,6 +39,20 @@ def parse_interface_code(code: str) -> dict:
     }
 
 
+def _infer_port_suffixes_from_equipment_keys(equipment: Dict[str, Any]) -> set:
+    """无 ID.x 时，从 CT./CS./EQU./I/O. 推断端口后缀（与 VMB / I_LINE / GPB 共用）。"""
+    inferred = set()
+    _port_prefixes = ('CT', 'CS', 'EQU', 'I/O')
+    for k in equipment:
+        if '.' not in k:
+            continue
+        head, tail = k.split('.', 1)
+        if head not in _port_prefixes or not tail or '.' in tail:
+            continue
+        inferred.add(tail)
+    return inferred
+
+
 def parse_block_attributes(equipment, filename):
     try:
         # print('[parse_block_attributes] device -',check_which_device(equipment, filename))
@@ -148,14 +162,7 @@ def parse_block_attributes(equipment, filename):
 
             # 无 ID.x 时（仅 CT./CS./EQU. 等），仍按端口后缀展开，避免 result 为空退回 final_result 导致聚合结果无关键属性
             if len(all_interface_set) == 0:
-                _port_prefixes = ('CT', 'CS', 'EQU', 'I/O')
-                for k in equipment:
-                    if '.' not in k:
-                        continue
-                    head, tail = k.split('.', 1)
-                    if head not in _port_prefixes or not tail or '.' in tail:
-                        continue
-                    all_interface_set.add(tail)
+                all_interface_set.update(_infer_port_suffixes_from_equipment_keys(equipment))
 
             #print(f"{all_interface_set=}")
             if len(all_interface_set) == 0:
@@ -236,6 +243,9 @@ def parse_block_attributes(equipment, filename):
                     if _k not in all_interface_set:
                         all_interface_set.add(_k)
 
+            if len(all_interface_set) == 0:
+                all_interface_set.update(_infer_port_suffixes_from_equipment_keys(equipment))
+
             # PS、PC and distribution=True 带横杠  interface   sub_system;buildinglevel;
             # field_code: field
             # field_unicode  ; 变成.    sub_system.buildinglevel.field
@@ -243,7 +253,7 @@ def parse_block_attributes(equipment, filename):
             # interface 拼的是unicode
             # code  interface最后一个 - 或者 ; 后面的
 
-            for _id in all_interface_set:
+            for _id in sorted(all_interface_set):
                 IDx = equipment.get(f'ID.{_id}')
                 # print(f"{IDx=} {_id=}")
                 _result = {
