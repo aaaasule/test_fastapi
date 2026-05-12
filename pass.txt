@@ -78,3 +78,38 @@ pids.max=
 5
 
 
+
+列名	#	数据类型	标识	排序规则	非空	默认值	注释
+id	1	int8	[NULL]	[NULL]	true	[NULL]	主键ID
+vendor	5	varchar(100)	[NULL]	default	false	[NULL]	设备厂商
+ext_properties	21	bytea	[NULL]	[NULL]	false	[NULL]	扩展属性（序列化后的 JSON、XML 或其他二进制格式）
+creator_id	22	varchar(50)	[NULL]	default	false	[NULL]	创建人
+create_time	23	varchar(30)	[NULL]	default	false	[NULL]	创建时间
+last_modifier_id	24	varchar(50)	[NULL]	default	false	[NULL]	最后修改人
+last_modify_time	25	varchar(30)	[NULL]	default	false	[NULL]	最后修改时间
+archive	26	int4	[NULL]	[NULL]	true	[NULL]	是否删除（逻辑删除标识，0-正常 1-已删除）
+fab_id	27	int8	[NULL]	[NULL]	false	[NULL]	工厂ID
+building_id	28	int8	[NULL]	[NULL]	false	[NULL]	建筑ID
+building_level	29	varchar(50)	[NULL]	default	false	[NULL]	楼层
+equipment_code	30	varchar(50)	[NULL]	default	false	[NULL]	所属主设备编码
+group	31	varchar(100)	[NULL]	default	false	[NULL]	设备分组
+equ_sub_short	32	varchar(100)	[NULL]	default	false	[NULL]	子设备简称
+model	33	varchar(500)	[NULL]	default	false	[NULL]	设备型号
+grid_x	34	varchar(50)	[NULL]	default	false	[NULL]	柱网坐标X
+grid_y	35	varchar(50)	[NULL]	default	false	[NULL]	柱网坐标Y
+layer	36	varchar(100)	[NULL]	default	false	[NULL]	CAD图层名称
+status	37	varchar(500)	[NULL]	default	false	[NULL]	设备状态
+bay_location	38	varchar(100)	[NULL]	default	false	[NULL]	Bay位置
+record	39	varchar(2000)	[NULL]	default	false	[NULL]	备注
+cad_block_name	40	varchar(500)	[NULL]	default	false	[NULL]	cad属性块名称
+angle	41	varchar(30)	[NULL]	default	false	[NULL]	cad属性块角度
+true_color	42	varchar(30)	[NULL]	default	false	[NULL]	cad属性块颜色
+insert_point_x	43	varchar(30)	[NULL]	default	false	[NULL]	插入点坐标X
+insert_point_y	44	varchar(30)	[NULL]	default	false	[NULL]	插入点坐标Y
+insert_point_z	45	varchar(30)	[NULL]	default	false	[NULL]	插入点坐标Z
+center_point_x	46	varchar(30)	[NULL]	default	false	[NULL]	中心点坐标X
+center_point_y	47	varchar(30)	[NULL]	default	false	[NULL]	中心点坐标Y
+cad_block_id	48	varchar(50)	[NULL]	default	false	[NULL]	CAD图块唯一标识
+
+
+
