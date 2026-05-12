@@ -65,7 +65,7 @@ sudo docker run --rm -it \
 
 
 
-
+sudo docker exec -it merge_app_1.4 bash -lc "echo nproc=$(ulimit -u); echo nofile=$(ulimit -n); echo pids.max=$(cat /sys/fs/cgroup/pids.max 2>/dev/null || true); ps -eLf | wc -l"
 
 
 
