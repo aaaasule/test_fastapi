@@ -61,6 +61,12 @@ def _fab_is_fab1_or_fab2(request_data: Dict[str, Any] | None) -> bool:
     return n in (1, 2)
 
 
+def _skip_cs_validation(request_data: Dict[str, Any] | None) -> bool:
+    system = (request_data or {}).get('system') or {}
+    system_code = str(system.get('code') or '').strip().upper()
+    return _fab_is_fab1_or_fab2(request_data) and system_code == 'ES'
+
+
 def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any], include_cs: bool = True) -> set:
     """从 EQU.{suffix}、CT.{suffix}、CS.{suffix} 收集端口后缀（suffix 不含点）。"""
     out = set()
@@ -93,13 +99,13 @@ def _id_required_by_port_keys_audit(eq: Dict[str, Any], device: str, request_dat
     """
     VMB：若存在 EQU.x、CT.x、CS.x，则必须有 ID.x。
 
-    FAB1 / FAB2 不校验。
+    FAB1 / FAB2 的 ES 系统不校验。
 
     返回 (missing_labels, empty_labels)，无需检查则返回 None。
     """
     if not str(device).startswith('VMB'):
         return None
-    if _fab_is_fab1_or_fab2(request_data):
+    if _skip_cs_validation(request_data):
         return None
 
     suffixes = _port_suffixes_from_equ_ct_cs(eq)
@@ -157,7 +163,7 @@ class FidRequiredFieldRule(BaseRule):
 
             #required_fields =
             for field in FID_REQUIRED_FIELDS[device]:
-                if _is_cs_required_field(field) and _fab_is_fab1_or_fab2(request_data):
+                if _is_cs_required_field(field) and _skip_cs_validation(request_data):
                     continue
                 if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
                     continue
@@ -200,8 +206,8 @@ class FidRequiredFieldRule(BaseRule):
                 results.append(CheckResult(
                     type=self.rule_type,
                     name="关键属性缺失",
-                    description=f"丢失关键业务属性：{joined}",
-                    detail=f"丢失关键业务属性：{joined}",
+                    description=f"图块问题,丢失关键业务属性：{joined}",
+                    detail=f"图块问题,丢失关键业务属性：{joined}",
                     equipment=[eq],
                     device=device
                 ))
@@ -214,8 +220,8 @@ class FidRequiredFieldRule(BaseRule):
                 results.append(CheckResult(
                     type=self.rule_type,
                     name="关键属性丢失",
-                    description=f"丢失关键业务属性：{', '.join(missing)}",
-                    detail=f"丢失关键业务属性：{', '.join(missing)}",
+                    description=f"图块问题,丢失关键业务属性：{', '.join(missing)}",
+                    detail=f"图块问题,丢失关键业务属性：{', '.join(missing)}",
                     equipment=[eq],
                     device=device
                 ))
