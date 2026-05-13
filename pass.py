@@ -1,269 +1,157 @@
-from typing import List, Any, Dict
-import re
+# dxf_parser.py
+import json
+import time
 
-import sys
-from pathlib import Path
+import ezdxf
+from ezdxf import bbox, recover
+from typing import List
+from app.fid.models import Equipment, FileInfo
 
-# 将项目根目录加入 Python 路径（当前文件: app/fid/eld_check_cli.py -> 上两级到根目录）
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from app.fid.validators.base_rules import BaseRule
-from app.fid.models import CheckResult
-#from app.config.fid_config import FID_REQUIRED_FIELDS
-current_file = Path(__file__).resolve()
-root_dir = current_file.parent
-while root_dir.name != 'app' and root_dir.parent != root_dir:
-    root_dir = root_dir.parent
-
-if root_dir.name == 'app':
-    project_root = root_dir.parent
-else:
-    #  fallback: 假设就在上一级
-    project_root = current_file.parent.parent
-
-# 3. 将项目根目录加入 Python 搜索路径
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-from app.config.fid_config import FID_REQUIRED_FIELDS
-
-from app.fid.utils.check_device import check_which_device
-
-# 由端口键推导必须存在的 ID.{suffix}：仅 EQU.x / CT.x / CS.x（与业务约定一致）
-_CT_CS_EQU_PREFIXES = ('CT', 'CS', 'EQU')
-_ID_DETAIL_MAX_LIST = 80
+import datetime
+import traceback
 
 
-def _fab_is_fab1_or_fab2(request_data: Dict[str, Any] | None) -> bool:
+def _read_dxf_document(dxf_path):
     """
-    是否 FAB1 / FAB2 厂区（用于关闭部分 VMB 的 ID.x 空值校验）。
-
-    约定：fab.id 为厂区编号（与名称中 Fab 后的数字一致，如 id=3 对应 Fab3）；
-    fab.name 为厂区名称。优先用 id；无法解析时再从 name 末尾连续数字推断。
+    优先使用 recover.readfile 读取 DXF，以兼容含非标准/损坏条目的文件。
+    recover 模式会跳过无效的表条目（如 name 非字符串），避免直接抛出 DXFTypeError。
     """
-    fab = (request_data or {}).get('fab') or {}
-    n = None
-    raw_id = fab.get('id')
-    if raw_id is not None and str(raw_id).strip() != '':
+    try:
+        doc, auditor = recover.readfile(dxf_path)
+        if auditor.errors or auditor.fixes:
+            print(f"DXF恢复解析完成: errors={len(auditor.errors)}, fixes={len(auditor.fixes)}")
+        return doc
+    except Exception as recover_error:
+        # recover 也失败时，尝试标准解析
         try:
-            n = int(raw_id)
-        except (TypeError, ValueError):
-            n = None
-    if n is None:
-        name = fab.get('name')
-        if name is not None:
-            m = re.search(r'(\d+)\s*$', str(name).strip())
-            if m:
-                try:
-                    n = int(m.group(1))
-                except ValueError:
-                    n = None
-    return n in (1, 2)
+            return ezdxf.readfile(dxf_path)
+        except Exception as normal_error:
+            raise Exception(
+                f"标准解析失败: {str(normal_error)}; 恢复解析失败: {str(recover_error)}"
+            ) from normal_error
 
 
-def _skip_cs_validation(request_data: Dict[str, Any] | None) -> bool:
-    system = (request_data or {}).get('system') or {}
-    system_code = str(system.get('code') or '').strip().upper()
-    return _fab_is_fab1_or_fab2(request_data) and system_code == 'ES'
-
-
-def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any], include_cs: bool = True) -> set:
-    """从 EQU.{suffix}、CT.{suffix}、CS.{suffix} 收集端口后缀（suffix 不含点）。"""
-    out = set()
-    for k in eq:
-        if '.' not in k:
-            continue
-        ku = str(k).upper()
-        head, tail = ku.split('.', 1)
-        if head not in _CT_CS_EQU_PREFIXES or not tail or '.' in tail:
-            continue
-        if head == 'CS' and not include_cs:
-            continue
-        out.add(tail)
-    return out
-
-
-def _suffix_sort_key(s: str):
-    if s.isdigit():
-        return (0, int(s), len(s), s)
-    return (1, s)
-
-
-def _format_id_label_list(labels, max_show: int = _ID_DETAIL_MAX_LIST) -> str:
-    if len(labels) <= max_show:
-        return ', '.join(labels)
-    return ', '.join(labels[:max_show]) + f' 等共 {len(labels)} 项'
-
-
-def _id_required_by_port_keys_audit(eq: Dict[str, Any], device: str, request_data: Dict[str, Any] | None = None):
+def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[Equipment]:
     """
-    VMB：若存在 EQU.x、CT.x、CS.x，则必须有 ID.x。
+    解析 DXF 文件，提取所有包含 'TOOL_ID' 属性的 INSERT 块（设备）。
 
-    FAB1 / FAB2 的 ES 系统不校验。
-
-    返回 (missing_labels, empty_labels)，无需检查则返回 None。
+    :param dxf_path: DXF 文件路径
+    :param file_info: 文件信息（用于绑定到 Equipment）
+    :return: Equipment 列表
     """
-    if not str(device).startswith('VMB'):
-        return None
-    if _skip_cs_validation(request_data):
-        return None
+    start_time = datetime.datetime.now()
 
-    suffixes = _port_suffixes_from_equ_ct_cs(eq)
-    if not suffixes:
-        return None
+    if target_layers:
+        target_layers = [tl['code'] for tl in target_layers]
 
-    by_upper = {str(k).upper(): k for k in eq.keys()}
-    missing = []
-    empty = []
+    try:
+        print(f"{dxf_path=} {type(dxf_path)}")
+        doc = _read_dxf_document(dxf_path)
+    except Exception as e:
+        print(traceback.format_exc())
+        raise Exception(f'dxf解析失败: {str(e)}')
 
-    for suf in sorted(suffixes, key=_suffix_sort_key):
-        id_label = f'ID.{suf}'
-        id_u = id_label.upper()
-        if id_u not in by_upper:
-            missing.append(id_label)
+    msp = doc.modelspace()
+    equipments: List[Equipment] = []
+
+    owerlist = []
+    for entity in msp:
+
+        # 只处理 INSERT（块引用）
+        if entity.dxftype() != "INSERT":
             continue
-        raw_k = by_upper[id_u]
-        val = eq.get(raw_k)
-        val = val.strip() if isinstance(val, str) else val
-        if val is None or val == '':
-            empty.append(id_label)
 
-    if not missing and not empty:
-        return None
-    return missing, empty
+        if target_layers and str(entity.dxf.layer) not in target_layers:
+            print(f"{str(entity.dxf.layer)} 不在目标layers中 {target_layers}")
+            continue
 
+        # 获取块定义（用于检查是否含属性）
+        block_name = entity.dxf.name
+        if block_name not in doc.blocks:
+            continue
 
-def _is_cs_required_field(field: str) -> bool:
-    field_u = str(field).upper()
-    return field_u == 'CS' or field_u.startswith('CS.')
+        block = doc.blocks[block_name]
+        # print(f"{block_name=}")
 
+        try:
+            # 获取块的包围盒（考虑旋转、缩放）
+            bb = bbox.extents([entity], fast=False)  # fast=False 更准确
+            if bb is not None:
+                center_x = (bb.extmin.x + bb.extmax.x) / 2
+                center_y = (bb.extmin.y + bb.extmax.y) / 2
+            else:
+                # 退回到插入点
+                center_x = entity.dxf.insert.x
+                center_y = entity.dxf.insert.y
+        except Exception as e:
+            # 如果计算失败，用插入点
+            center_x = entity.dxf.insert.x
+            center_y = entity.dxf.insert.y
 
-class FidRequiredFieldRule(BaseRule):
+        # 提取所有属性（ATTRIB）
+        attrs = {}
+        for attr in entity.attribs:
+            if hasattr(attr, 'dxf') and hasattr(attr.dxf, 'tag') and hasattr(attr.dxf, 'text'):
+                tag = str(attr.dxf.tag).strip().upper()
+                text = str(attr.dxf.text).strip() if attr.dxf.text else ''
+                attrs[tag] = text
+        # 只处理包含 TOOL_ID 的块
+        if "TOOL_ID" not in attrs or not attrs["TOOL_ID"]:
+            print('缺少TOOL_ID, 跳过！')
+            continue
+        else:
+            # tool_id 删除开头的^
+            attrs['TOOL_ID'] = attrs['TOOL_ID'][1:].strip() if attrs['TOOL_ID'] and attrs['TOOL_ID'].startswith(
+                '^') else attrs['TOOL_ID'].strip()
 
-    eqp_type = 'TAKEOFF'
-    rule_type = "error"
-    rule_name = "必填项缺失"
+        # if attrs.get("TOOL_ID", None) not in ['OPC', 'AOLUS03']:
+        #     continue
+        # print(attrs)
+        # continue
+        # if attrs.get("OWNER", None) not in owerlist:
+        #     owerlist.append(attrs.get("OWNER", None))
+        #     print(f"{owerlist=}")
 
-    def check(self, equipments: Dict[str, List[Dict[str, Any]]], device: str = None, request_data = None) -> List[CheckResult]:
-        results = []
+        # 构建 Equipment 对象
+        owner_code = (attrs.get("OWNER", '') or attrs.get("EQU.GROUP", '')).upper()
+        group_id = file_info.owner2id.get(owner_code) if file_info is not None and owner_code != '' else None
+        # print(f"{owner_code=} {group_id=}")
+        eq = Equipment(
+            id=file_info.id_ if file_info != None else None,
+            fab_id=file_info.fab_id if file_info != None else None,
+            building_id=file_info.building_id if file_info != None else None,
+            building_level=file_info.building_level if file_info != None else None,
+            group_id=group_id,
+            tool_id=attrs.get("TOOL_ID", None),
+            owner=attrs.get("OWNER", None) or attrs.get("EQU.GROUP", None),
+            vendor=attrs.get("VENDOR", None),
+            model=attrs.get("MODEL", None),
+            bay_location=attrs.get("BAY_LOCATION", None),
+            record=attrs.get("RECORDS", None),
+            # 固有属性
+            cad_block_name=block_name,
+            layer=entity.dxf.layer,
+            angle=float(entity.dxf.rotation) if hasattr(entity.dxf, 'rotation') else 0.0,
+            true_color=int(entity.dxf.color) if hasattr(entity.dxf, 'color') else 0,
+            insert_point_x=round(float(entity.dxf.insert.x), 4),
+            insert_point_y=round(float(entity.dxf.insert.y), 4),
+            insert_point_z=round(float(entity.dxf.insert.z), 4),
+            center_point_x=round(float(center_x), 4),
+            center_point_y=round(float(center_y), 4),
 
-        if device != None:
-            equipments = equipments[device]
+            cad_block_id=str(entity.dxf.handle),
+            file_info=file_info,
+        )
+        if eq.group_id is None:
+            print(f"file_info is None -> {file_info is None}")
+            print(f"{attrs.get('OWNER')=} {owner_code=}")
+            # print(json.dumps(file_info.owner2id, ensure_ascii=False, indent=2))
 
-        for eq in equipments:
-            #print(device, eq)
-            missing = []
-            empty = []
-
-            attrs = eq
-            device = check_which_device(eq, request_data['filename'])
-
-            # 配置项「整类缺失」（无任何匹配键）合并为一条，避免 api_util 按 errorName 去重后只保留 CT. 等一条
-            critical_patterns_missing = []
-
-            #required_fields =
-            for field in FID_REQUIRED_FIELDS[device]:
-                if _is_cs_required_field(field) and _skip_cs_validation(request_data):
-                    continue
-                if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
-                    continue
-                                                                                                                     
-
-                #print(f"{device} {field=}")
-                tmp_result = []
-                field_keys = []
-                for k in attrs:
-                    #print(f"37{k=}")
-                    if '.' in field and k.upper().startswith(field):
-                        #print(f'39 {field}')
-                        field_keys.append(k)
-                    elif '.' not in field and k.upper() == field:
-                        field_keys.append(k)
-                        #print(f'43 {field}')
-                #print(f"{field_keys=}")
-                #continue
-
-                for _key in field_keys:
-                    #value = getattr(eq, _key.lower(), None)
-                    value = eq.get(_key)
-                    value = value.strip() if isinstance(value, str) else value
-
-                    # if _key == 'GASNAME':
-                    #     print(f"GASNAME {eq=}")
-                    #     print(f"GASNAME {value=}")
-
-                    if value == None:
-                        missing.append(_key)
-                    if value == "":
-                        empty.append(_key)
-
-
-                if len(field_keys) == 0:
-                    critical_patterns_missing.append(field)
-
-            if critical_patterns_missing:
-                joined = "，".join(critical_patterns_missing)
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="关键属性缺失",
-                    description=f"图块问题,丢失关键业务属性：{joined}",
-                    detail=f"图块问题,丢失关键业务属性：{joined}",
-                    equipment=[eq],
-                    device=device
-                ))
-                print(f"{device=} 未存在必填字段(合并)：{critical_patterns_missing=} eq={eq}")
-
-            #print(f"{missing=}")
-            #print(f"{empty=}")
-
-            if missing:
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="关键属性丢失",
-                    description=f"图块问题,丢失关键业务属性：{', '.join(missing)}",
-                    detail=f"图块问题,丢失关键业务属性：{', '.join(missing)}",
-                    equipment=[eq],
-                    device=device
-                ))
-                print(f"丢失关键业务属性missing eq = {eq}")
-
-            if empty:
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="必填项缺失",
-                    description=f"必填项未填写：{', '.join(empty)}",
-                    detail=f"必填项未填写：{', '.join(empty)}",
-                    equipment=[eq],
-                    device=device,
-                    field_or_interface='interface'
-                ))
-                #print(eq)
-
-            id_audit = _id_required_by_port_keys_audit(eq, device, request_data)
-            if id_audit:
-                miss_ids, empty_ids = id_audit
-                parts = []
-                if miss_ids:
-                    parts.append(
-                        f"图块问题,缺少 {_format_id_label_list(miss_ids)} 属性字段"
-                    )
-                if empty_ids:
-                    parts.append(
-                        f"必填项未填写：{_format_id_label_list(empty_ids)}"
-                    )
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="接口ID缺失明细",
-                    description="；".join(parts),
-                    detail="；".join(parts),
-                    equipment=[eq],
-                    device=device,
-                    field_or_interface='interface',
-                ))
-        #print(f"{results=}")
-
-        return results
+        equipments.append(eq)
+    print(f"共解析出 {len(equipments)} 节点")
+    print(f"解析文件耗时： {datetime.datetime.now() - start_time}")
+    return equipments
 
 
 if __name__ == '__main__':
-    pass
+    parse_dxf("v:/Desktop/eld_check/YMTC^ELD^FAB1^F3.dxf")
