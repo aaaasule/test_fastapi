@@ -1,4 +1,5 @@
 # dxf_parser.py
+import contextlib
 import json
 import time
 
@@ -11,24 +12,49 @@ import datetime
 import traceback
 
 
+@contextlib.contextmanager
+def _ezdxf_tolerant_mode():
+    """
+    临时修补 ezdxf 的 Table._append，跳过 name 缺失（group code 2 不存在）
+    或 name 非字符串的无效表条目，而非直接抛出 DXFTypeError。
+    recover.readfile 和标准解析走同一套 TABLES 加载逻辑，此补丁对两者均有效。
+    """
+    from ezdxf.sections import table as _tbl
+    original_append = _tbl.Table._append
+
+    def _safe_append(self, entry):
+        try:
+            original_append(self, entry)
+        except Exception as e:
+            print(f"跳过无效DXF表条目 (name非字符串): {e}")
+
+    _tbl.Table._append = _safe_append
+    try:
+        yield
+    finally:
+        _tbl.Table._append = original_append
+
+
 def _read_dxf_document(dxf_path):
     """
-    优先使用 recover.readfile 读取 DXF，以兼容含非标准/损坏条目的文件。
-    recover 模式会跳过无效的表条目（如 name 非字符串），避免直接抛出 DXFTypeError。
+    使用容错模式读取 DXF 文件：
+    1. 优先尝试 recover.readfile（自动修复结构错误）
+    2. recover 失败时降级到标准 readfile
+    两种方式均在 _ezdxf_tolerant_mode 下运行，跳过 name 无效的表条目。
     """
-    try:
-        doc, auditor = recover.readfile(dxf_path)
-        if auditor.errors or auditor.fixes:
-            print(f"DXF恢复解析完成: errors={len(auditor.errors)}, fixes={len(auditor.fixes)}")
-        return doc
-    except Exception as recover_error:
-        # recover 也失败时，尝试标准解析
+    with _ezdxf_tolerant_mode():
         try:
-            return ezdxf.readfile(dxf_path)
-        except Exception as normal_error:
-            raise Exception(
-                f"标准解析失败: {str(normal_error)}; 恢复解析失败: {str(recover_error)}"
-            ) from normal_error
+            doc, auditor = recover.readfile(dxf_path)
+            if auditor.errors or auditor.fixes:
+                print(f"DXF恢复解析完成: errors={len(auditor.errors)}, fixes={len(auditor.fixes)}")
+            return doc
+        except Exception as recover_error:
+            try:
+                return ezdxf.readfile(dxf_path)
+            except Exception as normal_error:
+                raise Exception(
+                    f"标准解析失败: {str(normal_error)}; 恢复解析失败: {str(recover_error)}"
+                ) from normal_error
 
 
 def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[Equipment]:
