@@ -1,183 +1,276 @@
-# dxf_parser.py
-import contextlib
-import json
-import time
+"""
+ELD DXF 图纸解析脚本
+解析 DXF 文件中的设备图块属性，并将结果写入 Excel 文件。
+
+解析规则与 ELD 校验接口（dxf_parser.py）保持一致：
+  - 只处理 INSERT（块引用）实体
+  - 可按图层过滤（可选）
+  - 只处理包含 TOOL_ID 属性的图块
+  - TOOL_ID 若以 ^ 开头则去除前缀
+  - 提取 TOOL_ID / OWNER / EQU.GROUP / VENDOR / MODEL / BAY_LOCATION / RECORDS 等属性
+  - 同时记录图块固有信息：块名、图层、旋转角度、颜色、插入点、中心点、句柄
+
+用法：
+    python eld_dxf_to_excel.py <dxf文件路径> [输出excel路径] [--layers 图层1 图层2 ...]
+
+示例：
+    python eld_dxf_to_excel.py ./drawing.dxf
+    python eld_dxf_to_excel.py ./drawing.dxf ./output.xlsx
+    python eld_dxf_to_excel.py ./drawing.dxf ./output.xlsx --layers ELD ELD-EQUIP
+"""
+
+import sys
+import argparse
+import traceback
+from pathlib import Path
+from datetime import datetime
 
 import ezdxf
-from ezdxf import bbox, recover
-from typing import List
-from app.fid.models import Equipment, FileInfo
-
-import datetime
-import traceback
+from ezdxf import bbox
+import pandas as pd
 
 
-@contextlib.contextmanager
-def _ezdxf_tolerant_mode():
+# ─────────────────────────────── 解析核心 ────────────────────────────────── #
+
+def parse_eld_dxf(dxf_path: str, target_layers: list[str] | None = None) -> list[dict]:
     """
-    临时修补 ezdxf 的 Table._append，跳过 name 缺失（group code 2 不存在）
-    或 name 非字符串的无效表条目，而非直接抛出 DXFTypeError。
-    recover.readfile 和标准解析走同一套 TABLES 加载逻辑，此补丁对两者均有效。
+    解析 ELD DXF 文件，提取所有包含 TOOL_ID 属性的 INSERT 块。
+
+    规则与 dxf_parser.parse_dxf 保持一致：
+      1. 仅处理 INSERT 实体
+      2. 若指定 target_layers，则跳过不在列表中的图层
+      3. 块不存在于文档中则跳过
+      4. TOOL_ID 为空则跳过
+      5. TOOL_ID 去除开头的 ^ 符号
+
+    :param dxf_path:      DXF 文件路径
+    :param target_layers: 图层过滤列表，None 表示不过滤
+    :return:              设备属性字典列表
     """
-    from ezdxf.sections import table as _tbl
-    original_append = _tbl.Table._append
-
-    def _safe_append(self, entry):
-        try:
-            original_append(self, entry)
-        except Exception as e:
-            print(f"跳过无效DXF表条目 (name非字符串): {e}")
-
-    _tbl.Table._append = _safe_append
+    print(f"[{datetime.now():%H:%M:%S}] 开始读取 DXF：{dxf_path}")
     try:
-        yield
-    finally:
-        _tbl.Table._append = original_append
-
-
-def _read_dxf_document(dxf_path):
-    """
-    使用容错模式读取 DXF 文件：
-    1. 优先尝试 recover.readfile（自动修复结构错误）
-    2. recover 失败时降级到标准 readfile
-    两种方式均在 _ezdxf_tolerant_mode 下运行，跳过 name 无效的表条目。
-    """
-    with _ezdxf_tolerant_mode():
-        try:
-            doc, auditor = recover.readfile(dxf_path)
-            if auditor.errors or auditor.fixes:
-                print(f"DXF恢复解析完成: errors={len(auditor.errors)}, fixes={len(auditor.fixes)}")
-            return doc
-        except Exception as recover_error:
-            try:
-                return ezdxf.readfile(dxf_path)
-            except Exception as normal_error:
-                raise Exception(
-                    f"标准解析失败: {str(normal_error)}; 恢复解析失败: {str(recover_error)}"
-                ) from normal_error
-
-
-def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[Equipment]:
-    """
-    解析 DXF 文件，提取所有包含 'TOOL_ID' 属性的 INSERT 块（设备）。
-
-    :param dxf_path: DXF 文件路径
-    :param file_info: 文件信息（用于绑定到 Equipment）
-    :return: Equipment 列表
-    """
-    start_time = datetime.datetime.now()
-
-    if target_layers:
-        target_layers = [tl['code'] for tl in target_layers]
-
-    try:
-        print(f"{dxf_path=} {type(dxf_path)}")
-        doc = _read_dxf_document(dxf_path)
+        doc = ezdxf.readfile(dxf_path)
     except Exception as e:
-        print(traceback.format_exc())
-        raise Exception(f'dxf解析失败: {str(e)}')
+        raise RuntimeError(f"DXF 文件读取失败：{e}") from e
 
     msp = doc.modelspace()
-    equipments: List[Equipment] = []
+    records: list[dict] = []
 
-    owerlist = []
+    skipped_no_tool_id = 0
+    skipped_layer = 0
+    skipped_no_block = 0
+
     for entity in msp:
-
-        # 只处理 INSERT（块引用）
         if entity.dxftype() != "INSERT":
             continue
 
+        # ── 图层过滤 ──────────────────────────────────────────────────────── #
         if target_layers and str(entity.dxf.layer) not in target_layers:
-            print(f"{str(entity.dxf.layer)} 不在目标layers中 {target_layers}")
+            skipped_layer += 1
             continue
 
-        # 获取块定义（用于检查是否含属性）
+        # ── 块定义检查 ────────────────────────────────────────────────────── #
         block_name = entity.dxf.name
         if block_name not in doc.blocks:
+            skipped_no_block += 1
             continue
 
-        block = doc.blocks[block_name]
-        # print(f"{block_name=}")
-
-        try:
-            # 获取块的包围盒（考虑旋转、缩放）
-            bb = bbox.extents([entity], fast=False)  # fast=False 更准确
-            if bb is not None:
-                center_x = (bb.extmin.x + bb.extmax.x) / 2
-                center_y = (bb.extmin.y + bb.extmax.y) / 2
-            else:
-                # 退回到插入点
-                center_x = entity.dxf.insert.x
-                center_y = entity.dxf.insert.y
-        except Exception as e:
-            # 如果计算失败，用插入点
-            center_x = entity.dxf.insert.x
-            center_y = entity.dxf.insert.y
-
-        # 提取所有属性（ATTRIB）
-        attrs = {}
+        # ── 提取所有 ATTRIB 属性 ──────────────────────────────────────────── #
+        attrs: dict[str, str] = {}
         for attr in entity.attribs:
             if hasattr(attr, 'dxf') and hasattr(attr.dxf, 'tag') and hasattr(attr.dxf, 'text'):
                 tag = str(attr.dxf.tag).strip().upper()
                 text = str(attr.dxf.text).strip() if attr.dxf.text else ''
                 attrs[tag] = text
-        # 只处理包含 TOOL_ID 的块
+
+        # ── 必须包含非空 TOOL_ID ──────────────────────────────────────────── #
         if "TOOL_ID" not in attrs or not attrs["TOOL_ID"]:
-            print('缺少TOOL_ID, 跳过！')
+            skipped_no_tool_id += 1
             continue
+
+        # 去除 TOOL_ID 开头的 ^ 前缀
+        tool_id = attrs["TOOL_ID"]
+        if tool_id.startswith('^'):
+            tool_id = tool_id[1:].strip()
         else:
-            # tool_id 删除开头的^
-            attrs['TOOL_ID'] = attrs['TOOL_ID'][1:].strip() if attrs['TOOL_ID'] and attrs['TOOL_ID'].startswith(
-                '^') else attrs['TOOL_ID'].strip()
+            tool_id = tool_id.strip()
 
-        # if attrs.get("TOOL_ID", None) not in ['OPC', 'AOLUS03']:
-        #     continue
-        # print(attrs)
-        # continue
-        # if attrs.get("OWNER", None) not in owerlist:
-        #     owerlist.append(attrs.get("OWNER", None))
-        #     print(f"{owerlist=}")
+        # ── 计算中心点（包围盒）────────────────────────────────────────────── #
+        try:
+            bb = bbox.extents([entity], fast=False)
+            if bb is not None:
+                center_x = (bb.extmin.x + bb.extmax.x) / 2
+                center_y = (bb.extmin.y + bb.extmax.y) / 2
+            else:
+                center_x = entity.dxf.insert.x
+                center_y = entity.dxf.insert.y
+        except Exception:
+            center_x = entity.dxf.insert.x
+            center_y = entity.dxf.insert.y
 
-        # 构建 Equipment 对象
-        owner_code = (attrs.get("OWNER", '') or attrs.get("EQU.GROUP", '')).upper()
-        group_id = file_info.owner2id.get(owner_code) if file_info is not None and owner_code != '' else None
-        # print(f"{owner_code=} {group_id=}")
-        eq = Equipment(
-            id=file_info.id_ if file_info != None else None,
-            fab_id=file_info.fab_id if file_info != None else None,
-            building_id=file_info.building_id if file_info != None else None,
-            building_level=file_info.building_level if file_info != None else None,
-            group_id=group_id,
-            tool_id=attrs.get("TOOL_ID", None),
-            owner=attrs.get("OWNER", None) or attrs.get("EQU.GROUP", None),
-            vendor=attrs.get("VENDOR", None),
-            model=attrs.get("MODEL", None),
-            bay_location=attrs.get("BAY_LOCATION", None),
-            record=attrs.get("RECORDS", None),
-            # 固有属性
-            cad_block_name=block_name,
-            layer=entity.dxf.layer,
-            angle=float(entity.dxf.rotation) if hasattr(entity.dxf, 'rotation') else 0.0,
-            true_color=int(entity.dxf.color) if hasattr(entity.dxf, 'color') else 0,
-            insert_point_x=round(float(entity.dxf.insert.x), 4),
-            insert_point_y=round(float(entity.dxf.insert.y), 4),
-            insert_point_z=round(float(entity.dxf.insert.z), 4),
-            center_point_x=round(float(center_x), 4),
-            center_point_y=round(float(center_y), 4),
+        # ── 组装记录 ──────────────────────────────────────────────────────── #
+        # OWNER 优先，兼容 EQU.GROUP 字段
+        owner = attrs.get("OWNER", '') or attrs.get("EQU.GROUP", '')
 
-            cad_block_id=str(entity.dxf.handle),
-            file_info=file_info,
+        record = {
+            # ── 业务属性 ──────────────────────────────────────────────────── #
+            "TOOL_ID":        tool_id,
+            "OWNER":          owner,
+            "VENDOR":         attrs.get("VENDOR", ""),
+            "MODEL":          attrs.get("MODEL", ""),
+            "BAY_LOCATION":   attrs.get("BAY_LOCATION", ""),
+            "RECORDS":        attrs.get("RECORDS", ""),
+            # ── 其他自定义属性（非固定字段） ─────────────────────────────── #
+            "ALL_ATTRS":      str({k: v for k, v in attrs.items()
+                                   if k not in ("TOOL_ID", "OWNER", "EQU.GROUP",
+                                                "VENDOR", "MODEL", "BAY_LOCATION", "RECORDS")}),
+            # ── 固有属性 ──────────────────────────────────────────────────── #
+            "CAD_BLOCK_NAME": block_name,
+            "LAYER":          str(entity.dxf.layer),
+            "ANGLE":          round(float(entity.dxf.rotation)
+                                    if hasattr(entity.dxf, 'rotation') else 0.0, 4),
+            "TRUE_COLOR":     int(entity.dxf.color)
+                              if hasattr(entity.dxf, 'color') else 0,
+            "INSERT_X":       round(float(entity.dxf.insert.x), 4),
+            "INSERT_Y":       round(float(entity.dxf.insert.y), 4),
+            "INSERT_Z":       round(float(entity.dxf.insert.z), 4),
+            "CENTER_X":       round(float(center_x), 4),
+            "CENTER_Y":       round(float(center_y), 4),
+            "CAD_BLOCK_ID":   str(entity.dxf.handle),
+        }
+        records.append(record)
+
+    print(f"  解析完成：共 {len(records)} 个设备图块")
+    print(f"  跳过（无TOOL_ID）：{skipped_no_tool_id}  跳过（图层过滤）：{skipped_layer}  "
+          f"跳过（块不存在）：{skipped_no_block}")
+    return records
+
+
+# ─────────────────────────────── 写 Excel ────────────────────────────────── #
+
+COLUMN_HEADERS = {
+    "TOOL_ID":        "设备编号 (TOOL_ID)",
+    "OWNER":          "所属分组 (OWNER/EQU.GROUP)",
+    "VENDOR":         "供应商 (VENDOR)",
+    "MODEL":          "型号 (MODEL)",
+    "BAY_LOCATION":   "Bay位置 (BAY_LOCATION)",
+    "RECORDS":        "记录 (RECORDS)",
+    "ALL_ATTRS":      "其他属性",
+    "CAD_BLOCK_NAME": "图块名称",
+    "LAYER":          "图层",
+    "ANGLE":          "旋转角度",
+    "TRUE_COLOR":     "颜色号",
+    "INSERT_X":       "插入点X",
+    "INSERT_Y":       "插入点Y",
+    "INSERT_Z":       "插入点Z",
+    "CENTER_X":       "中心点X",
+    "CENTER_Y":       "中心点Y",
+    "CAD_BLOCK_ID":   "图块句柄 (Handle)",
+}
+
+
+def write_to_excel(records: list[dict], output_path: str, dxf_path: str) -> None:
+    """将解析结果写入 Excel，包含设备列表和统计摘要两个 Sheet。"""
+    df = pd.DataFrame(records)
+
+    if df.empty:
+        print("[警告] 未解析到任何设备，Excel 将为空表。")
+        df = pd.DataFrame(columns=list(COLUMN_HEADERS.keys()))
+
+    # 按列顺序排列
+    ordered_cols = [c for c in COLUMN_HEADERS if c in df.columns]
+    df = df[ordered_cols]
+    df = df.rename(columns=COLUMN_HEADERS)
+
+    # ── 统计摘要 ─────────────────────────────────────────────────────────── #
+    summary_rows = [
+        ["源文件",    str(dxf_path)],
+        ["解析时间",  datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+        ["设备总数",  len(records)],
+        ["图层数",    df[COLUMN_HEADERS["LAYER"]].nunique() if records else 0],
+        ["分组数",    df[COLUMN_HEADERS["OWNER"]].nunique() if records else 0],
+    ]
+    summary_df = pd.DataFrame(summary_rows, columns=["项目", "值"])
+
+    # 按图层统计
+    if records:
+        layer_stat = (df.groupby(COLUMN_HEADERS["LAYER"])
+                        .size()
+                        .reset_index(name="设备数量")
+                        .rename(columns={COLUMN_HEADERS["LAYER"]: "图层"}))
+    else:
+        layer_stat = pd.DataFrame(columns=["图层", "设备数量"])
+
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        # Sheet1：设备列表
+        df.to_excel(writer, sheet_name="设备列表", index=False)
+        _auto_column_width(writer.sheets["设备列表"], df)
+
+        # Sheet2：统计摘要
+        summary_df.to_excel(writer, sheet_name="统计摘要", index=False, startrow=0)
+        layer_stat.to_excel(writer, sheet_name="统计摘要", index=False, startrow=len(summary_df) + 2)
+        _auto_column_width(writer.sheets["统计摘要"], summary_df)
+
+    print(f"[{datetime.now():%H:%M:%S}] Excel 已写入：{output_path}")
+
+
+def _auto_column_width(ws, df: pd.DataFrame, min_width: int = 12, max_width: int = 60) -> None:
+    """自动调整列宽。"""
+    for i, col in enumerate(df.columns, start=1):
+        col_letter = ws.cell(row=1, column=i).column_letter
+        max_len = max(
+            len(str(col)),
+            df[col].astype(str).str.len().max() if not df.empty else 0,
         )
-        if eq.group_id is None:
-            print(f"file_info is None -> {file_info is None}")
-            print(f"{attrs.get('OWNER')=} {owner_code=}")
-            # print(json.dumps(file_info.owner2id, ensure_ascii=False, indent=2))
-
-        equipments.append(eq)
-    print(f"共解析出 {len(equipments)} 节点")
-    print(f"解析文件耗时： {datetime.datetime.now() - start_time}")
-    return equipments
+        ws.column_dimensions[col_letter].width = min(max(max_len + 2, min_width), max_width)
 
 
-if __name__ == '__main__':
-    parse_dxf("v:/Desktop/eld_check/YMTC^ELD^FAB1^F3.dxf")
+# ────────────────────────────────── CLI ──────────────────────────────────── #
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        description="解析 ELD DXF 图纸，将图块属性写入 Excel",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+    p.add_argument("dxf", help="DXF 文件路径")
+    p.add_argument("output", nargs="?", help="输出 Excel 路径（可选，默认同目录同名 .xlsx）")
+    p.add_argument(
+        "--layers", nargs="*", metavar="LAYER",
+        help="仅解析指定图层的图块（不指定则解析全部图层）",
+    )
+    return p
+
+
+def main() -> None:
+    parser = build_arg_parser()
+    args = parser.parse_args()
+
+    dxf_path = Path(args.dxf)
+    if not dxf_path.exists():
+        print(f"[错误] DXF 文件不存在：{dxf_path}", file=sys.stderr)
+        sys.exit(1)
+
+    # 输出路径：默认同目录同名 .xlsx
+    if args.output:
+        output_path = Path(args.output)
+    else:
+        output_path = dxf_path.with_suffix(".xlsx")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    target_layers = args.layers if args.layers else None
+    if target_layers:
+        print(f"图层过滤：{target_layers}")
+
+    try:
+        records = parse_eld_dxf(str(dxf_path), target_layers=target_layers)
+        write_to_excel(records, str(output_path), str(dxf_path))
+        print(f"\n完成！共导出 {len(records)} 条设备记录 -> {output_path}")
+    except Exception:
+        print(traceback.format_exc(), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
