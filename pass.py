@@ -1,4 +1,5 @@
 from typing import List, Any, Dict
+import re
 
 import sys
 from pathlib import Path
@@ -8,142 +9,255 @@ project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.fid.validators.base_rules import BaseRule
-from app.fid.models import  CheckResult
+from app.fid.models import CheckResult
+#from app.config.fid_config import FID_REQUIRED_FIELDS
+current_file = Path(__file__).resolve()
+root_dir = current_file.parent
+while root_dir.name != 'app' and root_dir.parent != root_dir:
+    root_dir = root_dir.parent
 
-from app.fid.utils.parse_block_attributes import parse_block_attributes
-from app.fid.validators.fid_rules.fid_required_field import _fab_is_fab1_or_fab2
+if root_dir.name == 'app':
+    project_root = root_dir.parent
+else:
+    #  fallback: 假设就在上一级
+    project_root = current_file.parent.parent
 
-import pandas as pd
+# 3. 将项目根目录加入 Python 搜索路径
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+from app.config.fid_config import FID_REQUIRED_FIELDS
 
-pd.set_option('display.max_rows', None)
+from app.fid.utils.check_device import check_which_device
+
+# 由端口键推导必须存在的 ID.{suffix}：仅 EQU.x / CT.x / CS.x（与业务约定一致）
+_CT_CS_EQU_PREFIXES = ('CT', 'CS', 'EQU')
+_ID_DETAIL_MAX_LIST = 80
 
 
-class TakeoffCSCTCheck(BaseRule):
+def _fab_is_fab1_or_fab2(request_data: Dict[str, Any] | None) -> bool:
+    """
+    是否 FAB1 / FAB2 厂区（用于关闭部分 VMB 的 ID.x 空值校验）。
+
+    约定：fab.id 为厂区编号（与名称中 Fab 后的数字一致，如 id=3 对应 Fab3）；
+    fab.name 为厂区名称。优先用 id；无法解析时再从 name 末尾连续数字推断。
+    """
+    fab = (request_data or {}).get('fab') or {}
+    n = None
+    raw_id = fab.get('id')
+    if raw_id is not None and str(raw_id).strip() != '':
+        try:
+            n = int(raw_id)
+        except (TypeError, ValueError):
+            n = None
+    if n is None:
+        name = fab.get('name')
+        if name is not None:
+            m = re.search(r'(\d+)\s*$', str(name).strip())
+            if m:
+                try:
+                    n = int(m.group(1))
+                except ValueError:
+                    n = None
+    return n in (1, 2)
+
+
+def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any], include_cs: bool = True) -> set:
+    """从 EQU.{suffix}、CT.{suffix}、CS.{suffix} 收集端口后缀（suffix 不含点）。"""
+    out = set()
+    for k in eq:
+        if '.' not in k:
+            continue
+        ku = str(k).upper()
+        head, tail = ku.split('.', 1)
+        if head not in _CT_CS_EQU_PREFIXES or not tail or '.' in tail:
+            continue
+        if head == 'CS' and not include_cs:
+            continue
+        out.add(tail)
+    return out
+
+
+def _suffix_sort_key(s: str):
+    if s.isdigit():
+        return (0, int(s), len(s), s)
+    return (1, s)
+
+
+def _format_id_label_list(labels, max_show: int = _ID_DETAIL_MAX_LIST) -> str:
+    if len(labels) <= max_show:
+        return ', '.join(labels)
+    return ', '.join(labels[:max_show]) + f' 等共 {len(labels)} 项'
+
+
+def _id_required_by_port_keys_audit(eq: Dict[str, Any], device: str, request_data: Dict[str, Any] | None = None):
+    """
+    VMB：若存在 EQU.x、CT.x、CS.x，则必须有 ID.x。
+
+    FAB1 / FAB2 不校验。
+
+    返回 (missing_labels, empty_labels)，无需检查则返回 None。
+    """
+    if not str(device).startswith('VMB'):
+        return None
+    if _fab_is_fab1_or_fab2(request_data):
+        return None
+
+    suffixes = _port_suffixes_from_equ_ct_cs(eq)
+    if not suffixes:
+        return None
+
+    by_upper = {str(k).upper(): k for k in eq.keys()}
+    missing = []
+    empty = []
+
+    for suf in sorted(suffixes, key=_suffix_sort_key):
+        id_label = f'ID.{suf}'
+        id_u = id_label.upper()
+        if id_u not in by_upper:
+            missing.append(id_label)
+            continue
+        raw_k = by_upper[id_u]
+        val = eq.get(raw_k)
+        val = val.strip() if isinstance(val, str) else val
+        if val is None or val == '':
+            empty.append(id_label)
+
+    if not missing and not empty:
+        return None
+    return missing, empty
+
+
+def _is_cs_required_field(field: str) -> bool:
+    field_u = str(field).upper()
+    return field_u == 'CS' or field_u.startswith('CS.')
+
+
+class FidRequiredFieldRule(BaseRule):
+
     eqp_type = 'TAKEOFF'
     rule_type = "error"
-    rule_name = "基于SDC校验CS、CT"
+    rule_name = "必填项缺失"
 
-    def check(self, equipments: Dict[str, List[Dict[str, Any]]],
-              device: str = None,
-              request_data=None) -> List[CheckResult]:
-        '''
-        检测takeoff 的 cs ct跟sdc是否相同
-        '''
-
-        if not device:
-            raise ValueError("device 类型不能为空")
+    def check(self, equipments: Dict[str, List[Dict[str, Any]]], device: str = None, request_data = None) -> List[CheckResult]:
+        results = []
 
         if device != None:
             equipments = equipments[device]
 
-        results = []
-        skip_cs_on_fab12 = _fab_is_fab1_or_fab2(request_data)
-
-        interface_pd = pd.DataFrame.from_dict(request_data['interface_list']).add_prefix('INTERFACE.')
-
-        field_pd = pd.DataFrame.from_dict(request_data['field_list']).add_prefix('FIELD.')
-
-        system_interface_pd = pd.DataFrame.from_dict(request_data['system_interface_list']).add_prefix('SYSTEM.')
-
-        # if interface_pd.empty:
-        #     interface_pd = pd.DataFrame([], columns=['id', 'field_id', 'uni_code', 'cad_block_id', 'con_size', 'con_type']).add_prefix('INTERFACE.')
-        # if field_pd.empty:
-        #     field_pd = pd.DataFrame([], columns=['id', 'system_id', 'subsystem_id',
-        #                                          'code', 'uni_code', 'cad_block_id'
-        #                                          'insert_point_x', 'insert_point_y', 'insert_point_z']).add_prefix('FIELD.')
-
-        # if system_interface_pd.empty:
-
-        # final_df = pd.merge(
-        #     field_pd,
-        #     interface_pd,
-        #     left_on='FIELD.id',
-        #     right_on='INTERFACE.field_id',
-        #     how='left'
-        # )
-        # interface_pd['SYSTEM.sub_system'] = interface_pd['INTERFACE.uni_code'].str.split(';').str[0]
-        print(f"{system_interface_pd.columns=}")
-        grouped = system_interface_pd.groupby('SYSTEM.system_code').agg({
-            'SYSTEM.con_size': lambda x: list(set(x)),
-            'SYSTEM.con_type': lambda x: list(set(x))
-        }).reset_index()
-
-        # print(f"{grouped['SYSTEM.system_code'].unique()=}")
-        print(f"grouped-\n{grouped}")
-        # exit(0)
-
         for eq in equipments:
+            #print(device, eq)
+            missing = []
+            empty = []
 
-            equipments_infos = parse_block_attributes(eq, request_data['filename'])
-            for equipment_info in equipments_infos:
+            attrs = eq
+            device = check_which_device(eq, request_data['filename'])
 
-                # sub_system = equipment_info['sub_system']
+            # 配置项「整类缺失」（无任何匹配键）合并为一条，避免 api_util 按 errorName 去重后只保留 CT. 等一条
+            critical_patterns_missing = []
 
-                # _grouped = grouped[grouped['SYSTEM.subsystem_code'] == sub_system]
+            #required_fields =
+            for field in FID_REQUIRED_FIELDS[device]:
+                if _is_cs_required_field(field) and _fab_is_fab1_or_fab2(request_data):
+                    continue
+                if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
+                    continue
+                                                                                                                     
 
-                system_code = request_data['system']['name']
-                #print(f"{system_code=}")
-                _grouped = grouped[grouped['SYSTEM.system_code'] == system_code]
+                #print(f"{device} {field=}")
+                tmp_result = []
+                field_keys = []
+                for k in attrs:
+                    #print(f"37{k=}")
+                    if '.' in field and k.upper().startswith(field):
+                        #print(f'39 {field}')
+                        field_keys.append(k)
+                    elif '.' not in field and k.upper() == field:
+                        field_keys.append(k)
+                        #print(f'43 {field}')
+                #print(f"{field_keys=}")
+                #continue
 
-                if not skip_cs_on_fab12 and (
-                        _grouped.empty or
-                        (equipment_info.get('connection_size') and equipment_info.get('connection_size') not in
-                         _grouped.iloc[0].to_dict().get('SYSTEM.con_size'))
-                ):
+                for _key in field_keys:
+                    #value = getattr(eq, _key.lower(), None)
+                    value = eq.get(_key)
+                    value = value.strip() if isinstance(value, str) else value
 
-                    # 如果是旧版本图纸，那么不校验cs
-                    # if not request_data['fab']['name'].endswith(request_data['disable_fab']) and device not in ['TAKEOFF', 'VMB_CHEMICAL', 'VMB_GASNAME']:
-                    results.append(CheckResult(
-                        type=self.rule_type,
-                        name="基于SDC校验CS、CT",
-                        description=f"CS信息与SDC中设定不符",
-                        detail=f"sub_system({equipment_info['connection_size']})与"
-                                f"SDC中设定不符",
-                        equipment=[eq, equipment_info],
-                        device=device
-                    ))
-                    print(f"{_grouped.empty=} connection_size: {equipment_info.get('connection_size')}")
-                if _grouped.empty or \
-                        (equipment_info.get('connection_type') and equipment_info.get('connection_type') not in
-                         _grouped.iloc[0].to_dict().get('SYSTEM.con_type')):
-                    results.append(CheckResult(
-                        type=self.rule_type,
-                        name="基于SDC校验CS、CT",
-                        description=f"CT信息与SDC中设定不符",
-                        detail=f"sub_system({equipment_info['connection_type']})与"
-                               f"SDC中设定不符",
-                        equipment=[eq, equipment_info],
-                        device=device
-                    ))
-                    print(f"{_grouped.empty=} connection_type: {equipment_info.get('connection_type')}")
+                    # if _key == 'GASNAME':
+                    #     print(f"GASNAME {eq=}")
+                    #     print(f"GASNAME {value=}")
+
+                    if value == None:
+                        missing.append(_key)
+                    if value == "":
+                        empty.append(_key)
+
+
+                if len(field_keys) == 0:
+                    critical_patterns_missing.append(field)
+
+            if critical_patterns_missing:
+                joined = "，".join(critical_patterns_missing)
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="关键属性缺失",
+                    description=f"丢失关键业务属性：{joined}",
+                    detail=f"丢失关键业务属性：{joined}",
+                    equipment=[eq],
+                    device=device
+                ))
+                print(f"{device=} 未存在必填字段(合并)：{critical_patterns_missing=} eq={eq}")
+
+            #print(f"{missing=}")
+            #print(f"{empty=}")
+
+            if missing:
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="关键属性丢失",
+                    description=f"丢失关键业务属性：{', '.join(missing)}",
+                    detail=f"丢失关键业务属性：{', '.join(missing)}",
+                    equipment=[eq],
+                    device=device
+                ))
+                print(f"丢失关键业务属性missing eq = {eq}")
+
+            if empty:
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="必填项缺失",
+                    description=f"必填项未填写：{', '.join(empty)}",
+                    detail=f"必填项未填写：{', '.join(empty)}",
+                    equipment=[eq],
+                    device=device,
+                    field_or_interface='interface'
+                ))
+                #print(eq)
+
+            id_audit = _id_required_by_port_keys_audit(eq, device, request_data)
+            if id_audit:
+                miss_ids, empty_ids = id_audit
+                parts = []
+                if miss_ids:
+                    parts.append(
+                        f"图块问题,缺少 {_format_id_label_list(miss_ids)} 属性字段"
+                    )
+                if empty_ids:
+                    parts.append(
+                        f"必填项未填写：{_format_id_label_list(empty_ids)}"
+                    )
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="接口ID缺失明细",
+                    description="；".join(parts),
+                    detail="；".join(parts),
+                    equipment=[eq],
+                    device=device,
+                    field_or_interface='interface',
+                ))
+        #print(f"{results=}")
+
         return results
 
 
 if __name__ == '__main__':
-    import sys
-    from pathlib import Path
-    print(sys.path)
-    print(Path('./').absolute().parent.parent)
-    sys.path.append(str(Path('./').absolute().parent.parent.parent))
-    from eld_validator.fid_parse import parse_dxf
-
-    dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PA^FAB1^F2.dxf'  # take off
-    #dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PC^FAB2^F2.dxf'
-    dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PS^FAB1^F2.dxf'
-    dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.PS^FAB2^F2.dxf'
-    dxf_path = r'D:\pycharm\eld_validator\data\fid\YMTC^FID.ES^FAB2^F2.dxf'
-
-    eqps = parse_dxf(dxf_path)
-
-    request_data = {'field&interface':{'N208V-3P;FAB2F2-BUS-F21-1-N2-15-Q10':
-         {'sub_system': 'U-3P;FAB2F2-F22-1-2I-LINE-U2-05-63D2716', 'conSize':1, 'conType':2}}
-     }
-    for eq in eqps:
-
-        rule = TakeoffCSCTCheck()
-        results = rule.check(eqps[eq], device=eq, request_data=request_data)
-
-        for r in results:
-            print(r)
-
-
+    pass
