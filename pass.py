@@ -61,7 +61,7 @@ def _fab_is_fab1_or_fab2(request_data: Dict[str, Any] | None) -> bool:
     return n in (1, 2)
 
 
-def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any]) -> set:
+def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any], include_cs: bool = True) -> set:
     """从 EQU.{suffix}、CT.{suffix}、CS.{suffix} 收集端口后缀（suffix 不含点）。"""
     out = set()
     for k in eq:
@@ -70,6 +70,8 @@ def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any]) -> set:
         ku = str(k).upper()
         head, tail = ku.split('.', 1)
         if head not in _CT_CS_EQU_PREFIXES or not tail or '.' in tail:
+            continue
+        if head == 'CS' and not include_cs:
             continue
         out.add(tail)
     return out
@@ -99,7 +101,8 @@ def _id_required_by_port_keys_audit(eq: Dict[str, Any], device: str, request_dat
     if not (str(device).startswith('VMB') or device in ('I_LINE', 'GPB')):
         return None
 
-    suffixes = _port_suffixes_from_equ_ct_cs(eq)
+    skip_cs_on_fab12 = _fab_is_fab1_or_fab2(request_data)
+    suffixes = _port_suffixes_from_equ_ct_cs(eq, include_cs=not skip_cs_on_fab12)
     if not suffixes:
         return None
 
@@ -128,6 +131,11 @@ def _id_required_by_port_keys_audit(eq: Dict[str, Any], device: str, request_dat
     return missing, empty
 
 
+def _is_cs_required_field(field: str) -> bool:
+    field_u = str(field).upper()
+    return field_u == 'CS' or field_u.startswith('CS.')
+
+
 class FidRequiredFieldRule(BaseRule):
 
     eqp_type = 'TAKEOFF'
@@ -153,6 +161,8 @@ class FidRequiredFieldRule(BaseRule):
 
             #required_fields =
             for field in FID_REQUIRED_FIELDS[device]:
+                if _is_cs_required_field(field) and _fab_is_fab1_or_fab2(request_data):
+                    continue
                 if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
                     continue
                                                                                                                      
