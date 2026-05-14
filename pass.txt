@@ -1,88 +1,63 @@
-1.	FID回填：
-请求方式：POST
-请求参数（JSON Body）
-{
-	“interfacesDetailList”:[
-		{
-			“id”:1,
-			“parentId”:,							// 父级id，开tee点位才会有
-			“fieldId”:1,							// 所属field id
-			“code”:”01”,							// 编码
-			“uniCode”:””,							// 唯一编码
-			“buildingId”:4,							// 所在建筑
-			“buildingLevel”:”F13”,					// 所在楼层
-			“distributionBox”:0,					// 是否分配箱/配电箱，0否1是
-			“conSize”:”1/2’”,						// 连接尺寸
-			“conType”:””,							// 连接类型
-			“maxDesignFlow”:”1000”,				// 最大设计流量
-			“inOutCode”:”N2”,						// 化学品的io类型
-			“peak”:””,								// 流量峰值
-			“oper”:””,								// 流量运行值
-			“ave”:””,								// 流量平均值
-			“unit”:””,								// 流量单位
-			“cadBlockName”:””,					// cad属性模块名称
-			“cadBlockId”:””,						// cad属性模块id
-			“layer”:””,								// 图层
-			“insertPointX”: ””,						// 插入点坐标X
-			“insertPointY”: ””,						// 插入点坐标Y
-			“insertPointZ”:””,						// 插入点坐标z
-			“angle”:””,							// cad属性块角度
-			“trueColor”:””,							// cad属性块颜色
-			“isAssigned”:2,						//是否已被派点，预派点(0)、预取消(1)、已派点(2)、未派点(3)
-			“status”:“add”,						// 点位状态
-			“locked”:0,							// 是否锁定，0否1是
-			“lockUserId”:”E908112”,					// 锁定点位的用户id
-			“teeOffFlag”:1,						// 开tee标识，1是已开tee
-			“remark”:”这是一个备注”,				// 备注信息
-			“isVirtual”0:,							// 是否虚拟点位，0否1是
-			“equipmentCode”:”BABCB01”,			// 点位关联的设备编码
-			“systemCode”:”PA”,					// 点位关联的系统
-			“teeList”:{								// 开tee点位列表
-				
-}
-},
-…
-]
-	“filePath”:””									// 需要回填的文件地址
-}
+支持派点信息回填到FID中
+需求背景
+为快速掌握已派点设备信息，需将其映射至FID文件中。具体操作为：打开对应机台的FID文件，定位设备接口的连接目标，使已派点机台的数据同步显示于FID文件中。经此处理后，用户在后续下载FID图纸时，即可直观、准确地查看机台接口的连接状态。
+功能位置与新增部分
+	页面：System-System Book
+	新增：操作列下添加按钮“下载派点信息”（待定）
+	新增：进行该功能后，会将派点信息更新到该机台对应ID
 
-返回参数（JSON Body）
-{
-	“code”:200,
-	“message”:””,
-	“success”:true,
-	“data”:””
-}
-文件放在文件夹下/EFMS/fid_with_assignment
-Data中返回一个处理后的文件地址的相对路径
-路径为fid_with_assignment/文件名
-文件名格式为原文件名_时间戳，例如原文件名_20260512092101
+执行流程
+步骤一：执行该功能后，首先删除已上传当前原图纸内所有关于EQU部分的属性内容，但保留其他属性信息。
+步骤二：筛选已派点接口，将已派点的设备信息ID添加到对应EQU属性内。
+步骤三：若是takeoff类则需要更改所有图形单元颜色为任意一种作为默认，已派点接口更改为任意另一种颜色。
 
-2.	SLD校验：
-请求方式：POST
-请求参数（JSON Body）
-{
-	“company”:{},
-	“building”:{},
-	“buildingLevel”:{},
-	“equipmentList”:[],
-	“eldSubEquipmentList”:[],
-	“layerList”:[],
-	“gridList”:[],
-	“fab”:{},
-	“file”:””,
+类别	是否开TEE	定位属性信息名称	填写位置	ID数量
+Takeoff	是	INTERFACE_CODE	EQUIPMENT_CODE	未开TEE下ID数量单一
+				开TEE下数量不定
+VMB，Slurry	否	先ID后ID.X的值	EQU.X	单一
+i-line盘，GPB，母线插板槽		先IDshort后ID.X		
+新版插接口		ID	EQU	
+根据不同设备类型进行不同的处理，分为Takeoff，VMB，GPB，新版插接口四大类。其中Takeoff和新版插接口属性结构类似，需要先判断这些接口的ID是否被派点，再在属性EQU部分填写该接口连接的机台ID。VMB，GPB则多了一个步骤，先判断这些接口的ID是否被派点，再根据他们末尾的ID号索引该接口ID.X属性的值或者属性本身名称位置，最后在对应ID.X的相同X的EQU.X部分内填写机台ID。除此之外对于Takeoff还需要考虑开TEE操作，详情见后文。
+Takeoff类
+未开TEE
+在未开TEE情况下进行派点操作。如下所示，选择PW系统的设备FORFXL13，接口选择PCWS;FAB2F1;2aWS04;04，在system-interface界面搜索该接口，在设备这列显示连接机台名称；该功能执行后，在FID图纸内该PCWS;FAB2F1;2aWS04;04点位对应的EQUIPMENT_CODE属性内填写该机台名称。
+ 
+
+在开TEE情况下进行派点操作，选取预留该机台进行派点，其中一个POC 接口为PCWS;FAB2F1;2aWS04;02-A，所连接设备ID为FORFXL13，另一个POC 接口为PCWS;FAB2F1;2aWS04;02-C，所连接设备ID为FORGXY02，在system-interface界面搜索该接口前缀PCWS;FAB2F1;2aWS04;02-A，会显示所连接的对象机台ID。该功能执行后，在FID图纸内该PCWS;FAB2F1;2aWS04;02点位的EQUIPMENT_CODE属性内填写该机台名称，会按照02-A:FORFXL13;02-C:FORGXY02显示在EQUIPMENT_CODE内。
+
+ 
+VMB，Slurry类
+如下所示，选择PC系统的机台BBONA01，接口选择Slurry类D2021;FAB2F3;2a27Y-N;12-S2，此编码是由ID+ID.X组成，在system-interface界面搜索该接口D2021;FAB2F3;2a27Y-N;12-S2，在设备列对应显示连接机台名称；该功能执行后，识别ID.X与EQU.X对应;例如，点位D2021;FAB2F3;2a27Y-N;12-S2，此处ID.X为S2，根据FID图纸中点位D2021;FAB2F3;2a27Y-N;12-S2属性ID.C对应值S2，在EQU.C处填写该机台名称BBONA01，以此类推。
 
 
-}
+i-line盘，GPB，母线插板槽
+如下所示，选择ES系统的机台BBONA01，接口选择GPB类的N380V-3P;FAB2F1;F21-1-1GPB-N3-01-20Q22;26，此编码是由ID前两位+IDshort+ID.X组成，在system-interface界面搜索该接口N380V-3P;FAB2F1;F21-1-1GPB-N3-01-20Q22;26，在设备列显示对应连接机台名称；该功能执行后，识别ID.X与EQU.X对应;例如，点位N380V-3P;FAB2F1;F21-1-1GPB-N3-01-20Q22;26，此处ID.X为26，根据FID图纸中F21-1-1GPB-N3-01-20Q22点位对应属性ID.26，在EQU.26处填写该机台名称BBONA01，以此类推。
 
-返回参数（JSON Body）
-{
-	“code”:200,
-	“message”:””,
-	“success”:true,
-	“data”:[]
-}
 
-Data中是校验成功列表或者是校验失败数据列表
-校验成功时返回包括diffContent，参数类型为List<String>
-有错误数据时返回校验失败数据列表，返回包括错误信息errors
+新版插接口
+Fab3的新版插接口，属性结构类似于Takeoff。例如，选择ES系统的机台BBONA01，接口选择GPB类的N480V-3P;FAB3F2;BUS-F22-2-N4-01-J28;01，此编码是由ID前两位+IDshort组成，在system-interface界面搜索该接口N480V-3P;FAB3F2;BUS-F22-2-N4-01-J28;01，设备列显示对应连接机台名称；该功能执行后，在FID图纸内该PCWS;FAB2F1;2aWS04;02点位的EQU属性内填写该机台名称BBONA01。
+
+
+点位操作日志
+需求背景
+当需要了解interface的变更历史记录时，需要快速得到他的日志，了解不同用户在什么时间进行了哪种对于interface的操作，方便对于后续操作的规范与归档。
+功能位置
+	新增页面：System-Log，可以导出interface操作历史记录，文件形式为EXCEL。
+功能介绍
+新增页面表头包含：子系统，接口编码，变更行为，操作者，更新时间。
+变更行为搜索选项分为：新增，删除，更新，派点，取消派点，锁定，解锁，开Tee，取消开Tee。
+界面显示内容排序：首先按照接口编码从小到大排列，然后更新时间按照从新到旧排序。
+子系统支持下拉选择搜索，接口编码可模糊搜索，变更行为支持下拉选择搜索，操作者支持模糊搜索。
+
+
+取消开Tee
+需求背景
+已开Tee点位根据业务需求需要取消开Tee。
+功能位置
+	新增按钮：取消开Tee。
+
+功能介绍
+只针对已开Tee点位、开Tee未派点点位、虚拟点位有该“取消开Tee”按钮操作，并且进行权限管控。类似于Equipment界面的虚拟设备。
+针对开Tee已派点点位，且虚拟点位，用户释放点位后，可开放”取消开Tee“按钮。
+针对开Tee已派点点位，且实际点位，通过上传FID图纸变更点位，用户将开Tee点位删除
+取消开Tee，已开Tee点位从数据库层面隐藏，不在System 系统Interace界面展现。
