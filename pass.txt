@@ -1,119 +1,88 @@
-sudo docker rm -f merge_app_1.4
-
-sudo docker run -d \
-  -p 8000:8000 \
-  -v "$(pwd)":/app/merge_interface \
-  -w /app/merge_interface \
-  -e OPENBLAS_NUM_THREADS=1 \
-  -e OMP_NUM_THREADS=1 \
-  -e MKL_NUM_THREADS=1 \
-  -e NUMEXPR_NUM_THREADS=1 \
-  --pids-limit=-1 \
-  --name merge_app_1.4 \
-  merger_env_1.4 \
-  python3 main.py
-
-
-
-sudo docker run --rm -it \
-  -p 8000:8000 \
-  -v "$(pwd)":/app/merge_interface \
-  -w /app/merge_interface \
-  -e OPENBLAS_NUM_THREADS=1 \
-  -e OMP_NUM_THREADS=1 \
-  -e MKL_NUM_THREADS=1 \
-  -e NUMEXPR_NUM_THREADS=1 \
-  -e PYTHONFAULTHANDLER=1 \
-  --pids-limit=-1 \
-  --name merge_app_1.4 \
-  merger_env_1.4 \
-  python3 -X faulthandler main.py  看看哪块坏了，用这个命令
-
-
- sudo docker rm -f merge_app_1.4
-sudo docker run --rm -it \
-  -p 8000:8000 \
-  -v "$(pwd)":/app/merge_interface \
-  -w /app/merge_interface \
-  -e OPENBLAS_NUM_THREADS=1 \
-  -e OMP_NUM_THREADS=1 \
-  -e MKL_NUM_THREADS=1 \
-  -e NUMEXPR_NUM_THREADS=1 \
-  merger_env_1.4 \
-  python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --loop asyncio --http h11 --workers 1
-
-
-
-sudo docker run --rm -it \
-  --name merge_app_1.4 \
-  --pids-limit=-1 \
-  --ulimit nproc=65535:65535 \
-  --ulimit nofile=65535:65535 \
-  --shm-size=1g \
-  -p 8000:8000 \
-  -v "$(pwd)":/app/merge_interface \
-  -w /app/merge_interface \
-  -e OPENBLAS_NUM_THREADS=1 \
-  -e OMP_NUM_THREADS=1 \
-  -e MKL_NUM_THREADS=1 \
-  -e NUMEXPR_NUM_THREADS=1 \
-  -e VECLIB_MAXIMUM_THREADS=1 \
-  -e BLIS_NUM_THREADS=1 \
-  -e MALLOC_ARENA_MAX=2 \
-  merger_env_1.4 \
-  python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --loop asyncio --http h11 --workers 1
-
-
-
-sudo docker exec -it merge_app_1.4 bash -lc "echo nproc=$(ulimit -u); echo nofile=$(ulimit -n); echo pids.max=$(cat /sys/fs/cgroup/pids.max 2>/dev/null || true); ps -eLf | wc -l"
-
-
-
-
-
-(base) [devadmin@tmit1efms02 ~]$ sudo docker exec -it merge_app_1.4 bash -lc "echo nproc=$(ulimit -u); echo nofile=$(ulimit -n); echo pids.max=$(cat /sys/fs/cgroup/pids.max 2>/dev/null || true); ps -eLf | wc -l"
-nproc=65536
-nofile=65536
-pids.max=
-5
-
-
-
-列名	#	数据类型	标识	排序规则	非空	默认值	注释
-id	1	int8	[NULL]	[NULL]	true	[NULL]	主键ID
-vendor	5	varchar(100)	[NULL]	default	false	[NULL]	设备厂商
-ext_properties	21	bytea	[NULL]	[NULL]	false	[NULL]	扩展属性（序列化后的 JSON、XML 或其他二进制格式）
-creator_id	22	varchar(50)	[NULL]	default	false	[NULL]	创建人
-create_time	23	varchar(30)	[NULL]	default	false	[NULL]	创建时间
-last_modifier_id	24	varchar(50)	[NULL]	default	false	[NULL]	最后修改人
-last_modify_time	25	varchar(30)	[NULL]	default	false	[NULL]	最后修改时间
-archive	26	int4	[NULL]	[NULL]	true	[NULL]	是否删除（逻辑删除标识，0-正常 1-已删除）
-fab_id	27	int8	[NULL]	[NULL]	false	[NULL]	工厂ID
-building_id	28	int8	[NULL]	[NULL]	false	[NULL]	建筑ID
-building_level	29	varchar(50)	[NULL]	default	false	[NULL]	楼层
-equipment_code	30	varchar(50)	[NULL]	default	false	[NULL]	所属主设备编码
-group	31	varchar(100)	[NULL]	default	false	[NULL]	设备分组
-equ_sub_short	32	varchar(100)	[NULL]	default	false	[NULL]	子设备简称
-model	33	varchar(500)	[NULL]	default	false	[NULL]	设备型号
-grid_x	34	varchar(50)	[NULL]	default	false	[NULL]	柱网坐标X
-grid_y	35	varchar(50)	[NULL]	default	false	[NULL]	柱网坐标Y
-layer	36	varchar(100)	[NULL]	default	false	[NULL]	CAD图层名称
-status	37	varchar(500)	[NULL]	default	false	[NULL]	设备状态
-bay_location	38	varchar(100)	[NULL]	default	false	[NULL]	Bay位置
-record	39	varchar(2000)	[NULL]	default	false	[NULL]	备注
-cad_block_name	40	varchar(500)	[NULL]	default	false	[NULL]	cad属性块名称
-angle	41	varchar(30)	[NULL]	default	false	[NULL]	cad属性块角度
-true_color	42	varchar(30)	[NULL]	default	false	[NULL]	cad属性块颜色
-insert_point_x	43	varchar(30)	[NULL]	default	false	[NULL]	插入点坐标X
-insert_point_y	44	varchar(30)	[NULL]	default	false	[NULL]	插入点坐标Y
-insert_point_z	45	varchar(30)	[NULL]	default	false	[NULL]	插入点坐标Z
-center_point_x	46	varchar(30)	[NULL]	default	false	[NULL]	中心点坐标X
-center_point_y	47	varchar(30)	[NULL]	default	false	[NULL]	中心点坐标Y
-cad_block_id	48	varchar(50)	[NULL]	default	false	[NULL]	CAD图块唯一标识
-
-
+1.	FID回填：
+请求方式：POST
+请求参数（JSON Body）
 {
-  "code": 400,
-  "message": "算法调用失败：dxf 文件解析遇到错误：dxf解析失败: name has to be a string.",
-  "traceback": "Traceback (most recent call last):\n  File \"/app/app/fid/dxf_parser.py\", line 29, in parse_dxf\n    doc = ezdxf.readfile(dxf_path)\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/filemanagement.py\", line 154, in readfile\n    doc = read(fp)  # type: ignore\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/filemanagement.py\", line 95, in read\n    return Drawing.read(stream)\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/document.py\", line 337, in read\n    return cls.load(tag_loader)\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/document.py\", line 352, in load\n    doc._load(tag_loader)\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/document.py\", line 368, in _load\n    self._load_section_dict(sections)\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/document.py\", line 403, in _load_section_dict\n    self.tables = TablesSection(self, sections.get(\"TABLES\", None))  # type: ignore\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/sections/tables.py\", line 56, in __init__\n    self._load(entities)\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/sections/tables.py\", line 95, in _load\n    self._load_table(table_name, table_records)  # type: ignore\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/sections/tables.py\", line 122, in _load_table\n    table.load(self.doc, iter(table_entities))\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/sections/table.py\", line 66, in load\n    self._append(cast(T, table_entry))\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/sections/table.py\", line 245, in _append\n    self.entries[self.key(entry.dxf.name)] = entry\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/sections/table.py\", line 96, in key\n    return validator.make_table_key(name)\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/lldxf/validator.py\", line 386, in make_table_key\n    raise DXFTypeError(\"name has to be a string.\")\nezdxf.lldxf.const.DXFTypeError: name has to be a string.\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/app/app/fid/api_util.py\", line 173, in _eld_check\n    current_equipment_list = parse_dxf(file_path, file_info=file_info, target_layers=TARGET_LAYERS)\n  File \"/app/app/fid/dxf_parser.py\", line 32, in parse_dxf\n    raise Exception(f'dxf解析失败: {str(e)}')\nException: dxf解析失败: name has to be a string.\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/app/app/fid/api_util.py\", line 179, in _eld_check\n    raise Exception(f'dxf 文件解析遇到错误：{str(dxf_exception)}')\nException: dxf 文件解析遇到错误：dxf解析失败: name has to be a string.\n"
+	“interfacesDetailList”:[
+		{
+			“id”:1,
+			“parentId”:,							// 父级id，开tee点位才会有
+			“fieldId”:1,							// 所属field id
+			“code”:”01”,							// 编码
+			“uniCode”:””,							// 唯一编码
+			“buildingId”:4,							// 所在建筑
+			“buildingLevel”:”F13”,					// 所在楼层
+			“distributionBox”:0,					// 是否分配箱/配电箱，0否1是
+			“conSize”:”1/2’”,						// 连接尺寸
+			“conType”:””,							// 连接类型
+			“maxDesignFlow”:”1000”,				// 最大设计流量
+			“inOutCode”:”N2”,						// 化学品的io类型
+			“peak”:””,								// 流量峰值
+			“oper”:””,								// 流量运行值
+			“ave”:””,								// 流量平均值
+			“unit”:””,								// 流量单位
+			“cadBlockName”:””,					// cad属性模块名称
+			“cadBlockId”:””,						// cad属性模块id
+			“layer”:””,								// 图层
+			“insertPointX”: ””,						// 插入点坐标X
+			“insertPointY”: ””,						// 插入点坐标Y
+			“insertPointZ”:””,						// 插入点坐标z
+			“angle”:””,							// cad属性块角度
+			“trueColor”:””,							// cad属性块颜色
+			“isAssigned”:2,						//是否已被派点，预派点(0)、预取消(1)、已派点(2)、未派点(3)
+			“status”:“add”,						// 点位状态
+			“locked”:0,							// 是否锁定，0否1是
+			“lockUserId”:”E908112”,					// 锁定点位的用户id
+			“teeOffFlag”:1,						// 开tee标识，1是已开tee
+			“remark”:”这是一个备注”,				// 备注信息
+			“isVirtual”0:,							// 是否虚拟点位，0否1是
+			“equipmentCode”:”BABCB01”,			// 点位关联的设备编码
+			“systemCode”:”PA”,					// 点位关联的系统
+			“teeList”:{								// 开tee点位列表
+				
 }
+},
+…
+]
+	“filePath”:””									// 需要回填的文件地址
+}
+
+返回参数（JSON Body）
+{
+	“code”:200,
+	“message”:””,
+	“success”:true,
+	“data”:””
+}
+文件放在文件夹下/EFMS/fid_with_assignment
+Data中返回一个处理后的文件地址的相对路径
+路径为fid_with_assignment/文件名
+文件名格式为原文件名_时间戳，例如原文件名_20260512092101
+
+2.	SLD校验：
+请求方式：POST
+请求参数（JSON Body）
+{
+	“company”:{},
+	“building”:{},
+	“buildingLevel”:{},
+	“equipmentList”:[],
+	“eldSubEquipmentList”:[],
+	“layerList”:[],
+	“gridList”:[],
+	“fab”:{},
+	“file”:””,
+
+
+}
+
+返回参数（JSON Body）
+{
+	“code”:200,
+	“message”:””,
+	“success”:true,
+	“data”:[]
+}
+
+Data中是校验成功列表或者是校验失败数据列表
+校验成功时返回包括diffContent，参数类型为List<String>
+有错误数据时返回校验失败数据列表，返回包括错误信息errors
