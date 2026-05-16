@@ -1,1 +1,4 @@
-200 {"code":400,"message":"FID图纸数据回填失败: match_equipment_code() missing 1 required positional argument: 'dxf_filename'","success":false,"data":""}
+match 0: {'D.UTILIZATION_RATIO': '', 'D.FLOW_UNIT': '', 'D.DESIGN_FLOW': '', 'C.UTILIZATION_RATIO': '', 'C.FLOW_UNIT': '', 'C.DESIGN_FLOW': '', 'B.UTILIZATION_RATIO': '', 'B.FLOW_UNIT': '', 'B.DESIGN_FLOW': '', 'A.UTILIZATION_RA
+TIO': '', 'A.FLOW_UNIT': '', 'A.DESIGN_FLOW': '', 'ID.D': 'S1', 'EQU.D': 'BBONA01', 'CS.D': '3/8"', 'CT.D': 'Ft', 'ID.C': 'S2', 'EQU.C': 'BBONA01', 'CS.C': '3/8"', 'CT.C': 'Ft', 'ID.B': 'R1', 'EQU.B': 'BBONA01', 'CS.B': '1/4"', 
+'CT.B': 'Ft', 'ID': 'D2021;FAB2F3;2a27Y-N;12', 'ID.A': 'R2', 'EQU.A': 'BBONA01', 'CS.A': '1/4"', 'CT.A': 'Ft'}
+
