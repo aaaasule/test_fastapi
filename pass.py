@@ -1,101 +1,130 @@
-"""FID 回填共用工具：属性读取、索引构建、通用查找。"""
+"""VMB / Slurry：equipmentCode 写入与 ID.x 对应的 EQU.x，无 ID.x 时兜底。"""
 
-from typing import Dict, List, Tuple
+from typing import Dict, Optional, Set
+
+from . import common
 
 
-def strip(value) -> str:
+def _normalize_code(value: str) -> str:
     return str(value or "").strip()
 
 
-def insert_attrs_plain_upper(insert) -> Dict[str, str]:
-    """INSERT 块属性 tag(大写) -> text"""
-    return {
-        str(getattr(attrib.dxf, "tag", "") or "").upper(): strip(getattr(attrib.dxf, "text", ""))
-        for attrib in getattr(insert, "attribs", [])
-    }
+def _get_last_segment(value: str) -> str:
+    code = _normalize_code(value)
+    if not code:
+        return ""
+    return code.split(";")[-1].strip()
 
 
-def id_dot_entries(attrs: Dict[str, str]) -> List[Tuple[str, str]]:
-    """收集 ID.x 端口属性（如 ID.1、ID.A），按 tag 排序。"""
-    out: List[Tuple[str, str]] = []
-    for tag in sorted(attrs.keys()):
-        if not tag.startswith("ID.") or tag == "ID":
+def infer_id_suffix_from_code(interface_code: str) -> str:
+    tail = _get_last_segment(interface_code)
+    if not tail:
+        return ""
+    if "-" in tail:
+        return tail.rsplit("-", 1)[-1].strip()
+    return tail
+
+
+def equipment_for_takeoff_branch(branch_map: Dict[str, str], port_label: str) -> str:
+    """
+    takeoff_group_map 分支键（如 12-S2）与图块端口标注（如 S2）对齐后取 equipmentCode。
+    """
+    port_label = str(port_label or "").strip()
+    if not port_label or not branch_map:
+        return ""
+    if port_label in branch_map:
+        return _normalize_code(branch_map[port_label])
+    for branch_key in sorted(branch_map.keys()):
+        bk = str(branch_key or "").strip()
+        if not bk:
             continue
-        if len(tag) < 4:
-            continue
-        val = attrs[tag].strip()
-        if val:
-            out.append((tag, val))
-    return out
-
-
-def dedupe_keys(keys: List[str]) -> List[str]:
-    seen = set()
-    out: List[str] = []
-    for k in keys:
-        if not k or k in seen:
-            continue
-        seen.add(k)
-        out.append(k)
-    return out
-
-
-def lookup_maps(keys: List[str], by_uni_code: Dict[str, str]) -> str:
-    for k in keys:
-        if k in by_uni_code:
-            return by_uni_code[k]
+        tail = bk.split("-")[-1].strip()
+        if tail == port_label:
+            return _normalize_code(branch_map[branch_key])
     return ""
 
 
-def match_equipment_code_legacy(attrs: Dict[str, str], by_uni_code: Dict[str, str]) -> str:
-    """历史兜底：INTERFACE_CODE / ID 直接对齐 uniCode。"""
-    interface_code = strip(attrs.get("INTERFACE_CODE"))
-    if interface_code and interface_code in by_uni_code:
-        return by_uni_code[interface_code]
-
-    id_code = strip(attrs.get("ID"))
-    if id_code and id_code in by_uni_code:
-        return by_uni_code[id_code]
-
-    return ""
-
-
-def interface_is_assigned(item: dict) -> bool:
-    """已派点：isAssigned 不为 3（仅 3 视为未派点）；缺省/非数字按已派点处理。"""
-    v = item.get("isAssigned")
-    if v is None:
-        return True
-    try:
-        return int(v) != 3
-    except (TypeError, ValueError):
-        return True
+def _matched_locator_codes_casefold(item: Optional[dict]) -> Set[str]:
+    """与 locator_keys_vmb_slurry 一致的完整定位串（uniCode / code），用于多端口块只回填命中端口。"""
+    if not item:
+        return set()
+    out: Set[str] = set()
+    for field in ("uniCode", "code"):
+        v = common.strip(item.get(field))
+        if v:
+            out.add(v.casefold())
+    return out
 
 
-def build_assigned_indices(interfaces: List[dict]) -> Dict[str, str]:
-    """仅提取已派点接口，构建 uniCode -> equipmentCode 索引。"""
-    by_uni_code: Dict[str, str] = {}
-
-    for item in interfaces:
-        if not interface_is_assigned(item):
-            continue
-        equipment_code = str(item.get("equipmentCode") or "").strip()
-        if not equipment_code:
-            continue
-
-        uni_code = str(item.get("uniCode") or "").strip()
-        if uni_code:
-            by_uni_code[uni_code] = equipment_code
-
-    return by_uni_code
+def _vmb_compound_locator_key(id_main: str, port_val: str) -> str:
+    """与 match_vmb.locator_keys_vmb_slurry 中「ID + '-' + ID.x」规则一致。"""
+    id_main = common.strip(id_main)
+    vx = common.strip(port_val)
+    if not vx:
+        return ""
+    if id_main:
+        return f"{id_main}-{vx}"
+    return vx
 
 
-def get_tee_off_flag(item: dict) -> int:
-    v = item.get("teeOffFlag")
-    if v is None:
-        v = item.get("tee_off_flag")
-    if v is None:
-        return 0
-    try:
-        return int(v)
-    except (TypeError, ValueError):
-        return 0
+def write_vmb_slurry_equipment_code(
+    attrs_plain: Dict[str, str],
+    attrs_by_tag: dict,
+    equipment_code: str,
+    interface_code: str,
+    id_code: str,
+    takeoff_branch_map: Optional[Dict[str, str]] = None,
+    matched_item: Optional[dict] = None,
+) -> bool:
+    dots = common.id_dot_entries(attrs_plain)
+    wrote = False
+    matched_loc_cf = _matched_locator_codes_casefold(matched_item)
+    restrict_to_assigned_port = bool(matched_loc_cf) and takeoff_branch_map is None
+    id_main = common.strip(attrs_plain.get("ID"))
+    if dots:
+        for id_tag, vid_val in dots:
+            if not id_tag.startswith("ID.") or len(id_tag) < 4:
+                continue
+            suf = id_tag[3:].strip()
+            if not suf:
+                continue
+            equ_dot_tag = f"EQU.{suf.upper()}"
+            target_attr = attrs_by_tag.get(equ_dot_tag)
+            if target_attr is None:
+                continue
+            vx = common.strip(vid_val)
+            if not vx:
+                continue
+            compound = _vmb_compound_locator_key(id_main, vx)
+            if restrict_to_assigned_port and compound.casefold() not in matched_loc_cf:
+                continue
+            if takeoff_branch_map:
+                code = equipment_for_takeoff_branch(takeoff_branch_map, vid_val)
+                if not code:
+                    continue
+            else:
+                code = _normalize_code(equipment_code)
+            if code:
+                target_attr.dxf.text = code
+                wrote = True
+    else:
+        suffix = infer_id_suffix_from_code(interface_code or id_code)
+        if suffix:
+            equ_dot_tag = f"EQU.{suffix.upper()}"
+            target_attr = attrs_by_tag.get(equ_dot_tag)
+            if target_attr is not None:
+                code = ""
+                if takeoff_branch_map:
+                    code = equipment_for_takeoff_branch(takeoff_branch_map, suffix)
+                else:
+                    code = _normalize_code(equipment_code)
+                if code:
+                    target_attr.dxf.text = code
+                    wrote = True
+        if not takeoff_branch_map:
+            for tag in ("EQUIPMENT_CODE", "EQU"):
+                target_attr = attrs_by_tag.get(tag)
+                if target_attr is not None:
+                    target_attr.dxf.text = _normalize_code(equipment_code)
+                    wrote = True
+    return wrote
