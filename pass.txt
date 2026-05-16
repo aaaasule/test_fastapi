@@ -1,68 +1,29 @@
-import ezdxf
-
-
-def print_dxf(path):
-
-    doc = ezdxf.readfile(str(path))
-
-    msp = doc.modelspace()
-    for insert in msp.query("INSERT"):
-        for attrib in getattr(insert, "attribs", []):
-            tag = str(getattr(attrib.dxf, "tag", "") or "").upper()
-            text = str(getattr(attrib.dxf, "text", "") or "").upper()
-            if text == "F21-1-1GPB-N3-01-20Q22":
-                print(f"tag:{tag}:{text}")
-            # if tag.startswith("EQU"):
-            #     if (attrib.dxf.text or "") != "":
-            #         attrib.dxf.text = ""
-
-
-if __name__ == '__main__':
-    print_dxf('doc/write_fid/YMTC^FID.ES^FAB2^F2.dxf')
-
-
-
-
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\document.py", line 368, in _load
-    self._load_section_dict(sections)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\document.py", line 394, in _load_section_dict
-    loader.load_and_bind_dxf_content(sections, self)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\lldxf\loader.py", line 147, in load_and_bind_dxf_content
-    for index, entity in enumerate(load_dxf_entities(section, doc)):
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\lldxf\loader.py", line 138, in load_dxf_entities
-    yield factory.load(ExtendedTags(entity), doc)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\factory.py", line 69, in load
-    entity = cls(tags.dxftype()).load(tags, doc)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\dxfentity.py", line 226, in load
-    entity.load_tags(tags, dxfversion=dxfversion)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\dxfentity.py", line 251, in load_tags
-    self.dxf = self.load_dxf_attribs(processor)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\line.py", line 67, in load_dxf_attribs
-    processor.simple_dxfattribs_loader(dxf, merged_line_group_codes)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\dxfns.py", line 612, in simple_dxfattribs_loader
-    unprotected_set_attrib(
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\dxfns.py", line 239, in unprotected_set
-    return cls.load(tag_loader)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\document.py", line 352, in load
-    doc._load(tag_loader)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\document.py", line 368, in _load
-    self._load_section_dict(sections)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\document.py", line 394, in _load_section_dict
-    loader.load_and_bind_dxf_content(sections, self)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\lldxf\loader.py", line 147, in load_and_bind_dxf_content
-    for index, entity in enumerate(load_dxf_entities(section, doc)):
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\lldxf\loader.py", line 138, in load_dxf_entities
-    yield factory.load(ExtendedTags(entity), doc)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\factory.py", line 69, in load
-    entity = cls(tags.dxftype()).load(tags, doc)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\dxfentity.py", line 226, in load
-    entity.load_tags(tags, dxfversion=dxfversion)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\dxfentity.py", line 251, in load_tags
-    self.dxf = self.load_dxf_attribs(processor)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\line.py", line 67, in load_dxf_attribs
-    processor.simple_dxfattribs_loader(dxf, merged_line_group_codes)
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\dxfns.py", line 612, in simple_dxfattribs_loader
-    unprotected_set_attrib(
-  File "V:\Desktop\envs\env_validators\lib\site-packages\ezdxf\entities\dxfns.py", line 239, in unprotected_set
-    self.__dict__[key] = value
-MemoryError
+026-05-16 16:30:32 - backen-fastapi - INFO - ------------------------------2026-05-16 16:30:32.352302接收FID图纸数据回填参数------------------------------
+by_uni_code:{} 
+takeoff_group_map:{'D2021;FAB2F3;2a27Y-N;12': {'12-S2': 'BBONA01'}} 
+equipment_code:BBONA01
+interface_code:
+id_code:D2021;FAB2F3;2a27Y-N;12
+attrs_by_tag:{'D.UTILIZATION_RATIO': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#17FFA), 'D.FLOW_UNIT': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#17FFB), 'D.DESIGN_FLOW': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#17
+FFC), 'C.UTILIZATION_RATIO': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#17FFD), 'C.FLOW_UNIT': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#17FFE), 'C.DESIGN_FLOW': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#17FFF), 'B
+.UTILIZATION_RATIO': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18000), 'B.FLOW_UNIT': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18001), 'B.DESIGN_FLOW': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18002), 'A.UTILIZA
+TION_RATIO': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18003), 'A.FLOW_UNIT': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18004), 'A.DESIGN_FLOW': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18005), 'ID.D': <class 'ez
+dxf.entities.attrib.Attrib'> ATTRIB(#18006), 'EQU.D': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18007), 'CS.D': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18008), 'CT.D': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1
+8009), 'ID.C': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800A), 'EQU.C': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800B), 'CS.C': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800C), 'CT.C': <class 'ezdxf.entities.
+attrib.Attrib'> ATTRIB(#1800D), 'ID.B': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800E), 'EQU.B': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800F), 'CS.B': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18010), 'CT.B'
+: <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18011), 'ID': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18012), 'ID.A': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18013), 'EQU.A': <class 'ezdxf.entities.attrib.Attrib'>
+ ATTRIB(#18014), 'CS.A': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18015), 'CT.A': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18016)}
+attrs_plain:{'D.UTILIZATION_RATIO': '', 'D.FLOW_UNIT': '', 'D.DESIGN_FLOW': '', 'C.UTILIZATION_RATIO': '', 'C.FLOW_UNIT': '', 'C.DESIGN_FLOW': '', 'B.UTILIZATION_RATIO': '', 'B.FLOW_UNIT': '', 'B.DESIGN_FLOW': '', 'A.UTILIZATION
+_RATIO': '', 'A.FLOW_UNIT': '', 'A.DESIGN_FLOW': '', 'ID.D': 'S1', 'EQU.D': '', 'CS.D': '3/8"', 'CT.D': 'Ft', 'ID.C': 'S2', 'EQU.C': '', 'CS.C': '3/8"', 'CT.C': 'Ft', 'ID.B': 'R1', 'EQU.B': '', 'CS.B': '1/4"', 'CT.B': 'Ft', 'ID'
+block_type:VMB_CHEMICAL
+dxf.entities.attrib.Attrib'> ATTRIB(#18006), 'EQU.D': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18007), 'CS.D': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18008), 'CT.D': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1
+8009), 'ID.C': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800A), 'EQU.C': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800B), 'CS.C': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800C), 'CT.C': <class 'ezdxf.entities.
+attrib.Attrib'> ATTRIB(#1800D), 'ID.B': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800E), 'EQU.B': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#1800F), 'CS.B': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18010), 'CT.B'
+: <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18011), 'ID': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18012), 'ID.A': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18013), 'EQU.A': <class 'ezdxf.entities.attrib.Attrib'>
+ ATTRIB(#18014), 'CS.A': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18015), 'CT.A': <class 'ezdxf.entities.attrib.Attrib'> ATTRIB(#18016)}
+equipment_code:BBONA01
+interface_code:
+id_code:D2021;FAB2F3;2a27Y-N;12
+2026-05-16 16:31:13 - backen-fastapi - INFO - FID回填完成: ftp_src=EFMS/fia_assignment/YTMC^FID.PC^FAB2^F3.dxf, local_work=\\vdinas\perdata\L12120071\Desktop\efms_python_validator\app\fid\temp_uploads\YTMC^FID.PC^FAB2^F3, ftp_ds
+t=EFMS/fid_with_assignment/YTMC^FID.PC^FAB2^F3_20260516163051.dxf, cleared_equ=546, assigned=1, written=1, color_default=0, color_assigned=0
+INFO:     127.0.0.1:3098 - "POST /api/write_fid HTTP/1.1" 200 OK
