@@ -1,4 +1,56 @@
-match 0: {'D.UTILIZATION_RATIO': '', 'D.FLOW_UNIT': '', 'D.DESIGN_FLOW': '', 'C.UTILIZATION_RATIO': '', 'C.FLOW_UNIT': '', 'C.DESIGN_FLOW': '', 'B.UTILIZATION_RATIO': '', 'B.FLOW_UNIT': '', 'B.DESIGN_FLOW': '', 'A.UTILIZATION_RA
-TIO': '', 'A.FLOW_UNIT': '', 'A.DESIGN_FLOW': '', 'ID.D': 'S1', 'EQU.D': 'BBONA01', 'CS.D': '3/8"', 'CT.D': 'Ft', 'ID.C': 'S2', 'EQU.C': 'BBONA01', 'CS.C': '3/8"', 'CT.C': 'Ft', 'ID.B': 'R1', 'EQU.B': 'BBONA01', 'CS.B': '1/4"', 
-'CT.B': 'Ft', 'ID': 'D2021;FAB2F3;2a27Y-N;12', 'ID.A': 'R2', 'EQU.A': 'BBONA01', 'CS.A': '1/4"', 'CT.A': 'Ft'}
+{
+  "interfacesDetailList": [
+    {
+      "id": 133617,
+      "parentId": null,
+      "fieldId": null,
+      "code": null,
+      "uniCode": "PCWR;FAB2F2;2aWS03;04",
+      "buildingId": null,
+      "buildingLevel": null,
+      "distributionBox": null,
+      "conSize": null,
+      "conType": null,
+      "maxDesignFlow": null,
+      "inOutCode": null,
+      "peak": null,
+      "oper": null,
+      "ave": null,
+      "unit": null,
+      "cadBlockName": null,
+      "cadBlockId": "44868",
+      "layer": null,
+      "insertPointX": null,
+      "insertPointY": null,
+      "insertPointZ": null,
+      "angle": null,
+      "trueColor": null,
+      "isAssigned": 1,
+      "status": null,
+      "locked": null,
+      "lockUserId": null,
+      "teeOffFlag": 1,
+      "remark": null,
+      "isVirtual": null,
+      "equipmentCode": "FORGXY01",
+      "systemCode": null,
+      "teeList": [
+        {
+          "uniCode": "PCWR;FAB2F2;2aWS03;04-A",
+          "isAssigned": 1,
+          "teeOffFlag": 1,
+          "equipmentCode": "FORGXY02"
+        },
+        {
+          "uniCode": "PCWR;FAB2F2;2aWS03;04-B",
+          "isAssigned": 1,
+          "teeOffFlag": 1,
+          "equipmentCode": "FORGXY03"
+        }
+      ]
+    }
+  ],
+  "filePath": "EFMS/fia_assignment/YTMC^FID.PW^FAB2^F2.dxf",
+  "localDxfPath": "\\\\vdinas\\perdata\\L12120071\\Desktop\\efms_python_validator\\doc\\write_fid\\YMTC^FID.PW^FAB2^F2.dxf"
+}
 
