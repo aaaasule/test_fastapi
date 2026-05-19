@@ -1,327 +1,174 @@
-import time
-from typing import List, Any, Dict
+# -*- coding: utf-8 -*-
+"""SLD 校验 HTTP 接口：保存 DXF、写 exec_config、子进程执行 cli、读结果。"""
+from __future__ import annotations
+
+import asyncio
+import datetime
+import json
+import re
+import shutil
+import subprocess
 import sys
+import traceback
 from pathlib import Path
 
-# 将项目根目录加入 Python 路径
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(project_root))
+from fastapi import APIRouter
 
-from app.fid.validators.base_rules import FIDBaseRule
-from app.fid.models import CheckResult
-from app.fid.utils.parse_block_attributes import parse_block_attributes
-from app.fid.validators.fid_rules.fid_required_field import _skip_cs_validation, _should_validate_pc_io_change
-from app.fid.utils.process_fid_request import normalize_interface_list
+from app.config import logger
+from app.config.fid_config import FTP_CONFIG
+from app.fid.utils.ftp_download import download_file_from_ftp
+from app.sld.schemas import SldCheckRequest
 
-_INTERFACE_LOOKUP_COL = 'INTERFACE.in_out_code'
+router = APIRouter()
 
-
-def _ensure_interface_in_out_code_column(df):
-    """合并后的 DataFrame 保证存在 in_out_code 列，缺失/NaN 统一为空字符串。"""
-    import math
-
-    if _INTERFACE_LOOKUP_COL not in df.columns:
-        df[_INTERFACE_LOOKUP_COL] = ''
-        return df
-
-    def _to_str(val):
-        if val is None:
-            return ''
-        if isinstance(val, float) and math.isnan(val):
-            return ''
-        return str(val).strip()
-
-    df[_INTERFACE_LOOKUP_COL] = df[_INTERFACE_LOOKUP_COL].map(_to_str)
-    return df
-import pandas as pd
-import json
-
-pd.set_option('display.max_columns', None)
-pd.set_option('display.width', None)
-pd.set_option('display.expand_frame_repr', False)
+# 本模块内所有文件读写（工作目录、本地 DXF）均限定在 app/sld 下
+SLD_DIR = Path(__file__).resolve().parent
+# ``local:`` 前缀表示 app/sld 下本地路径；无前缀一律按 FTP 远端路径下载
+LOCAL_FILE_PREFIX = "local:"
 
 
-class BlockAttributeCheck(FIDBaseRule):
-    rule_type = "warning"
-    rule_name = '图块属性修改'
+def _is_path_under(base: Path, path: Path) -> bool:
+    try:
+        path.resolve().relative_to(base.resolve())
+        return True
+    except ValueError:
+        return False
 
-    DEFAULT_FIELDS = ["VMB_TYPE", 'I/O']
-    #io\
 
-    ATTRIBUTIONS = {
-        'TAKEOFF': ['CS', 'CT', 'FLOW_UNIT', 'DESIGN_FLOW'],
-        'VMB_CHEMICAL': ["CT.", "CS.", "ID.", "DESIGN_FLOW", 'FLOW_UNIT'],
-        'VMB_GASNAME': ["CT.", "CS.", "ID.", "DESIGN_FLOW", 'FLOW_UNIT'],
-        'I_LINE': ["ID."],
-        'GPB': ["ID.", "CS."],
-        'NEW_INTER_': ["CS"],
+def _api_error(message: str, *, detail: str | None = None) -> dict:
+    errs = [detail] if detail else [message]
+    return {
+        "code": 400,
+        "message": message,
+        "success": False,
+        "data": [{"errors": errs}],
     }
 
-    def check(self, equipments: Dict[str, List[Dict[str, Any]]], device=None, request_data=None) -> List[CheckResult]:
-        global_start = time.time()
-        print(f"[block_attribute_modified] Start checking device: {device}")
 
-        if device is not None:
-            equipments = equipments.get(device, [])
+def _resolve_local_under_sld(local_path: str) -> Path | dict:
+    """解析 ``local:`` 后的路径，须落在 ``app/sld`` 下且为已存在文件。"""
+    raw = local_path.strip()
+    if not raw:
+        return _api_error("local: 后路径不能为空", detail="local: 后路径不能为空")
 
-        if len(equipments) == 0:
-            return []
+    sld_root = SLD_DIR.resolve()
+    exp = Path(raw).expanduser()
+    if exp.is_absolute():
+        candidate = exp.resolve()
+        if not _is_path_under(sld_root, candidate):
+            return _api_error(
+                "本地 file 必须在 app/sld 目录下",
+                detail=f"拒绝访问: {candidate}",
+            )
+    else:
+        candidate = (SLD_DIR / exp).resolve()
+        if not _is_path_under(sld_root, candidate):
+            return _api_error(
+                "file 相对路径解析后须位于 app/sld 目录下",
+                detail=f"路径越界: {raw}",
+            )
 
-        results = []
-
-        # --- 1. 数据准备与预处理 (关键优化点) ---
-        df_prep_start = time.time()
-
-        interface_records = normalize_interface_list(request_data.get('interface_list') or [])
-        interface_pd = pd.DataFrame.from_dict(interface_records).add_prefix('INTERFACE.')
-        field_pd = pd.DataFrame.from_dict(request_data['field_list']).add_prefix('FIELD.')
-
-        if interface_pd.empty:
-            interface_pd = pd.DataFrame(
-                [], columns=['id', 'field_id', 'uni_code', 'cad_block_id', 'in_out_code']
-            ).add_prefix('INTERFACE.')
-        if field_pd.empty:
-            field_pd = pd.DataFrame([], columns=['id', 'system_id', 'subsystem_id', 'code', 'uni_code', 'cad_block_id',
-                                                 'insert_point_x', 'insert_point_y', 'insert_point_z']).add_prefix(
-                'FIELD.')
-
-        final_df = pd.merge(
-            field_pd,
-            interface_pd,
-            left_on='FIELD.id',
-            right_on='INTERFACE.field_id',
-            how='left'
+    if not candidate.is_file():
+        return _api_error(
+            "本地 DXF 不存在或不是文件",
+            detail=str(candidate),
         )
-        final_df = _ensure_interface_in_out_code_column(final_df)
+    return candidate
 
-        # 【优化核心】：将 DataFrame 转换为字典，Key 为 uni_code
-        # 这样查找的时间复杂度从 O(N) 降为 O(1)
-        # 注意：如果有重复的 uni_code，这里只保留最后一个（通常业务逻辑中 uni_code 应唯一，或者取第一个均可，视具体需求而定）
-        # 使用 to_dict('records') 然后构建字典，或者直接利用 set_index
-        # 【优化核心】：将 DataFrame 转换为字典，Key 为 uni_code
-        # 这样查找的时间复杂度从 O(N) 降为 O(1)
 
-        if not final_df.empty:
-            # --- 修复开始 ---
-            # 1. 检查是否有重复的 uni_code
-            duplicate_count = final_df['INTERFACE.uni_code'].duplicated().sum()
-            if duplicate_count > 0:
-                print(
-                    f"[WARNING] 发现 {duplicate_count} 条重复的 INTERFACE.uni_code 记录，正在执行去重策略（保留最后一条）...")
-                # 2. 去重：基于 'INTERFACE.uni_code' 列，保留最后一条记录 (keep='last')
-                # 如果业务要求保留第一条，请将 keep='last' 改为 keep='first'
-                final_df_dedup = final_df.drop_duplicates(subset=['INTERFACE.uni_code'], keep='last')
+def _stem_for_work_dir(file_ref: str) -> str:
+    path_str = file_ref
+    if file_ref.startswith(LOCAL_FILE_PREFIX):
+        path_str = file_ref[len(LOCAL_FILE_PREFIX) :].strip()
+    return Path(path_str.replace("\\", "/")).stem
+
+
+@router.post("/api/sld_check")
+async def sld_check(body: SldCheckRequest) -> dict:
+    """
+    SLD 校验：JSON Body，字段与《SLD和FID回填》「SLD校验」一致。
+
+    ``file`` 约定：
+    - ``local:<path>``：``app/sld`` 下本地 DXF（``path`` 相对 ``app/sld`` 或绝对路径但须在目录内）；
+    - 其它值：FTP 远端路径（原样 ``RETR``，可含 ``/`` 多级目录）。
+    """
+    try:
+        logger.info("-" * 30 + f"{datetime.datetime.now()}接收SLD参数(JSON)" + "-" * 30)
+        start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        file_ref = (body.file or "").strip()
+        if not file_ref:
+            return _api_error("file 不能为空", detail="file 不能为空")
+
+        use_local = file_ref.startswith(LOCAL_FILE_PREFIX)
+        stem = _stem_for_work_dir(file_ref)
+        filename = re.sub("[^a-zA-Z0-9]", "", stem)
+        work_dir = SLD_DIR / "work" / f"sld_{filename}"
+        work_dir.mkdir(parents=True, exist_ok=True)
+        file_path = work_dir / f"{stem}_{start_time}.dxf"
+
+        try:
+            if use_local:
+                local_path = file_ref[len(LOCAL_FILE_PREFIX) :]
+                resolved = _resolve_local_under_sld(local_path)
+                if isinstance(resolved, dict):
+                    return resolved
+                shutil.copy2(resolved, file_path)
+                file_path = file_path.resolve()
             else:
-                final_df_dedup = final_df
+                file_path = file_path.resolve()
+                download_file_from_ftp(
+                    host=FTP_CONFIG["host"],
+                    username=FTP_CONFIG["username"],
+                    password=FTP_CONFIG["password"],
+                    port=FTP_CONFIG["port"],
+                    local_file_path=str(file_path),
+                    remote_filename=file_ref,
+                )
+        except Exception as save_exc:
+            raise Exception(f"DXF文件保存遇到错误：{str(save_exc)}") from save_exc
 
-            try:
-                # 3. 设置索引并转换字典
-                # 此时索引保证唯一，不会再抛出 ValueError
-                lookup_dict = final_df_dedup.set_index('INTERFACE.uni_code').to_dict(orient='index')
-            except ValueError as e:
-                # 极端兜底：如果去重后仍然失败（理论上不可能），打印错误并初始化为空字典，避免程序崩溃
-                print(f"[ERROR] 构建查找字典失败：{e}。跳过该步骤，后续查找将全部失效。")
-                lookup_dict = {}
-            # --- 修复结束 ---
+        exec_config_path = work_dir / f"exec_config_{start_time}.json"
+        log_file = exec_config_path.parent / f"{start_time}.log"
 
-            print(f"[INFO] 字典大小：{len(lookup_dict)} 条记录 (原始行数：{len(final_df)})")
-        else:
-            lookup_dict = {}
-            print(f"[INFO] 数据为空，字典大小为 0")
+        config_json = {
+            "file_path": str(file_path),
+            "company": body.company,
+            "fab": body.fab,
+            "building": body.building,
+            "buildingLevel": body.buildingLevel,
+            "equipmentList": body.equipmentList,
+            "eldSubEquipmentList": body.eldSubEquipmentList,
+            "layerList": body.layerList,
+            "gridList": body.gridList,
+            "mission_start_time": start_time,
+        }
+        exec_config_path.parent.mkdir(parents=True, exist_ok=True)
+        exec_config_path.write_text(
+            json.dumps(config_json, ensure_ascii=False, indent=4),
+            encoding="utf-8",
+        )
 
-        df_prep_end = time.time()
-        print(f"[PERF] DataFrame 准备与字典构建耗时：{(df_prep_end - df_prep_start) * 1000:.2f} ms")
-        print(f"[INFO] 字典大小：{len(lookup_dict)} 条记录")
+        def run_subprocess_sync() -> int:
+            cmd = [sys.executable, "-u", "-m", "app.sld.cli", str(exec_config_path.absolute())]
+            with open(log_file, "w", encoding="utf-8") as log_f:
+                result = subprocess.run(cmd, stdout=log_f, stderr=subprocess.STDOUT, text=True)
+            return result.returncode
 
-        # 确定描述
-        if device == 'TAKEOFF':
-            description = "ID_Short 不变前提下，和上一版数据相比图块属性修改："
-        elif device.startswith('VMB'):
-            description = 'ID 不变前提下，和上一版数据相比图块属性修改：'
-        else:
-            description = 'ID_Short 不变前提下，和上一版数据相比图块属性修改：'
-        skip_cs = _skip_cs_validation(request_data)
-        check_pc_io = _should_validate_pc_io_change(request_data)
+        loop = asyncio.get_event_loop()
+        returncode = await loop.run_in_executor(None, run_subprocess_sync)
 
-        def log_time(step_name, start_ts):
-            end_ts = time.time()
-            duration_ms = (end_ts - start_ts) * 1000
-            # 只有当耗时超过 1ms 才打印，避免日志过多，或者你可以保留全部
-            if duration_ms > 0.5:
-                print(f"  [TIME] {step_name}: {duration_ms:.2f} ms")
-            return end_ts
+        result_path = Path(exec_config_path).parent / f"result_{start_time}.json"
+        if result_path.is_file():
+            with open(result_path, encoding="utf-8") as f:
+                return json.load(f)
+        return {
+            "code": 400,
+            "message": f"子进程未生成结果(returncode={returncode})，日志: {log_file}",
+            "success": False,
+            "data": [{"errors": [f"子进程 returncode={returncode}"]}],
+        }
 
-        # --- 2. 主循环 ---
-        loop_start = time.time()
-
-        for idx, eq in enumerate(equipments):
-            step_start = time.time()
-
-            # 解析属性
-            parse_start = time.time()
-            try:
-                equipments_info = parse_block_attributes(eq, request_data['filename'])
-            except Exception as e:
-                print(f"[ERROR] parse_block_attributes failed for eq {idx}: {e}")
-                equipments_info = []
-            #log_time(f"Eq[{idx}] parse_block_attributes", parse_start)
-
-            for info_idx, info in enumerate(equipments_info):
-                inner_step_start = time.time()
-                modify_cache = []
-                desc_changes = []  # 【新增】用于收集 description 中的字段变化详情
-                interface_detail = ''
-                field_detail = ''
-
-                # 【优化核心】：字典查找替代 DataFrame 筛选
-                filter_start = time.time()
-                uni_code = info.get('interface_code')
-
-                # 直接从字典获取，耗时接近 0
-                target_dict = lookup_dict.get(uni_code)
-
-                filter_end = log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Dict Lookup", filter_start)
-
-                compare_start = time.time()
-                if target_dict is not None:
-                    # target_dict 现在直接就是一个字典，不需要 iloc[0].to_dict()
-
-                    # 提取变量 (保持原有逻辑)
-                    cs = target_dict.get('INTERFACE.con_size', '')
-                    ct = target_dict.get('INTERFACE.con_type', '')
-                    flow_unit = target_dict.get('INTERFACE.unit', '')
-                    design_flow = target_dict.get('INTERFACE.max_design_flow', '')
-                    vmb_type = target_dict.get('FIELD.vmb_type', '')
-                    in_out_code = target_dict.get('INTERFACE.in_out_code', '')
-
-                    # NaN 处理 (字典取值可能直接是 np.nan，需要转换)
-                    import math
-                    def clean_val(val):
-                        if val is None: return ''
-                        if isinstance(val, float) and math.isnan(val): return ''
-                        return str(val)
-
-                    cs = clean_val(cs)
-                    ct = clean_val(ct)
-                    flow_unit = clean_val(flow_unit)
-                    design_flow = clean_val(design_flow)
-                    vmb_type = clean_val(vmb_type)
-                    in_out_code = clean_val(in_out_code)
-
-                    # --- 比对逻辑 ---
-                    if device == 'TAKEOFF':
-                        if not skip_cs and (cs or info['connection_size']) and cs != info['connection_size']:
-                            modify_cache.append('cs')
-                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})")  # 【修改】
-                            interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
-                        if (ct or info['connection_type']) and ct != info['connection_type']:
-                            modify_cache.append('ct')
-                            desc_changes.append(f"ct({ct},{str(info['connection_type'])})") # 【修改】
-                            interface_detail += f"CT 修改 ({ct}) -> ({info['connection_type']})\n"
-                        if (flow_unit or info['flow_unit']) and flow_unit != info['flow_unit']:
-                            modify_cache.append('flow_unit')
-                            desc_changes.append(f"flow_unit({flow_unit},{str(info['flow_unit'])})") # 【修改】
-                            interface_detail += f"flow_unit 修改 ({flow_unit}) -> ({info['flow_unit']})\n"
-                        if (design_flow or info['design_flow']) and design_flow != info['design_flow']:
-                            modify_cache.append('design_flow')
-                            desc_changes.append(f"design_flow({design_flow},{str(info['design_flow'])})") # 【修改】
-                            interface_detail += f"design_flow 修改 ({design_flow}) -> ({info['design_flow']})\n"
-
-                    elif device in ['VMB_CHEMICAL', 'VMB_GASNAME']:
-                        if not skip_cs and (cs or info['connection_size']) and cs != info['connection_size']:
-                            modify_cache.append('cs')
-                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
-                            interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
-                        if (ct or info['connection_type']) and ct != info['connection_type']:
-                            modify_cache.append('ct')
-                            desc_changes.append(f"ct({ct},{str(info['connection_type'])})") # 【修改】
-                            interface_detail += f"CT 修改 ({ct}) -> ({info['connection_type']})\n"
-                        if (flow_unit or info['flow_unit']) and flow_unit != info['flow_unit']:
-                            modify_cache.append('flow_unit')
-                            desc_changes.append(f"flow_unit({flow_unit},{str(info['flow_unit'])})") # 【修改】
-                            interface_detail += f"flow_unit 修改 ({flow_unit}) -> ({info['flow_unit']})\n"
-                        if (design_flow or info['design_flow']) and design_flow != info['design_flow']:
-                            modify_cache.append('design_flow')
-                            desc_changes.append(f"design_flow({design_flow},{str(info['design_flow'])})") # 【修改】
-                            interface_detail += f"design_flow 修改 ({design_flow}) -> ({info['design_flow']})\n"
-                        if (vmb_type or info['vmb-type']) and vmb_type != info['vmb-type']:
-                            modify_cache.append('vmb-type')
-                            desc_changes.append(f"vmb-type({vmb_type},{str(info['vmb-type'])})") # 【修改】
-                            field_detail += f"vmb_type 修改 ({vmb_type}) -> ({info['vmb-type']})\n"
-                        if check_pc_io:
-                            cad_io = clean_val(info.get('I/O', ''))
-                            if (in_out_code or cad_io) and in_out_code != cad_io:
-                                modify_cache.append('I/O')
-                                desc_changes.append(f"I/O({in_out_code},{cad_io})")
-                                interface_detail += f"I/O 修改 ({in_out_code}) -> ({cad_io})\n"
-
-                    elif device in ['I_LINE', 'GPB']:
-                        if not skip_cs and (cs or info['connection_size']) and cs != info['connection_size']:
-                            modify_cache.append('cs')
-                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
-                            interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
-                        if check_pc_io:
-                            cad_io = clean_val(info.get('I/O', ''))
-                            if (in_out_code or cad_io) and in_out_code != cad_io:
-                                modify_cache.append('I/O')
-                                desc_changes.append(f"I/O({in_out_code},{cad_io})")
-                                interface_detail += f"I/O 修改 ({in_out_code}) -> ({cad_io})\n"
-
-                    elif device == 'NEW_INTER_':
-                        if not skip_cs and (cs or info['connection_size']) and cs != info['connection_size']:
-                            modify_cache.append('cs')
-                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
-                            interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
-
-                log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Attribute Compare", compare_start)
-
-                # 特殊规则
-                # if request_data.get('fab', {}).get('name', '').endswith(('1', '2', '3')) and device not in ['TAKEOFF',
-                #                                                                                             'VMB_CHEMICAL',
-                #                                                                                             'VMB_GASNAME'] and 'cs' in modify_cache:
-                #     modify_cache.remove('cs')
-                if request_data.get('fab', {}).get('name', '').endswith(request_data['disable_fab']) and device not in ['TAKEOFF', 'VMB_CHEMICAL', 'VMB_GASNAME'] and 'cs' in modify_cache:
-                    modify_cache.remove('cs')
-                    desc_changes = [d for d in desc_changes if not d.startswith('cs')] # 【新增】同步移除
-
-                # 结果追加
-                if len(modify_cache) > 0:
-                    append_start = time.time()
-                    if 'vmb-type' in modify_cache:
-                        results.append(CheckResult(
-                            type=self.rule_type,
-                            name="图块属性修改",
-                            description=description + ' '.join(desc_changes), # 【修改】使用详细变化列表
-                            detail=description + field_detail + interface_detail,
-                            equipment=[eq],
-                            operation=f'update',
-                            field_or_interface='field',
-                            device=device
-                        ))
-                    else:
-                        results.append(CheckResult(
-                            type=self.rule_type,
-                            name="图块属性修改",
-                            description=description + ','.join(desc_changes), # 【修改】使用详细变化列表
-                            detail=description + interface_detail,
-                            equipment=[eq, info],
-                            operation=f'update',
-                            field_or_interface='interface',
-                            device=device
-                        ))
-                    #log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Append Result", append_start)
-
-                #log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Total Inner Loop", inner_step_start)
-
-            #log_time(f"Eq[{idx}] Total Outer Loop", step_start)
-
-        loop_end = time.time()
-        print(f"[PERF] 主循环总耗时：{(loop_end - loop_start) * 1000:.2f} ms")
-        print(f"[PERF] 整个 check 函数总耗时：{(time.time() - global_start) * 1000:.2f} ms")
-        print(f"[RESULT] 发现警告数量：{len(results)}")
-
-        return results
-
-
-if __name__ == '__main__':
-    pass
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        return _api_error(f"算法调用失败: {str(e)}", detail=str(e))
