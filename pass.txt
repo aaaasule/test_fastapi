@@ -1,41 +1,42 @@
-{
-      "VMB-TYPE": "VMB Type01",
-      "ID": "NH4OH-29%;FAB3F2;3a34C;001",
-      "CHEMICALNAME": "",
-      "EQU.A": "",
-      "ID.A": "1",
-      "CT.A": "Spl",
-      "CS.A": "3/4\"",
-      "A.DESIGN_FLOW": "",
-      "A.FLOW_UNIT": "",
-      "EQU.B": "",
-      "ID.B": "2",
-      "CT.B": "Spl",
-      "CS.B": "3/4\"",
-      "B.DESIGN_FLOW": "",
-      "B.FLOW_UNIT": "",
-      "EQU.C": "",
-      "ID.C": "3",
-      "CT.C": "Spl",
-      "CS.C": "3/4\"",
-      "C.DESIGN_FLOW": "",
-      "C.FLOW_UNIT": "",
-      "EQU.D": "",
-      "ID.D": "4",
-      "CT.D": "Spl",
-      "CS.D": "3/4\"",
-      "D.DESIGN_FLOW": "",
-      "D.FLOW_UNIT": "",
-      "I/O": "I/O-01;FAB3F2;3a34B",
-      "CAD_BLOCK_NAME": "酸碱VMB-1",
-      "LAYER": "PC-B-NH4OH-29_",
-      "ANGLE": 270.0,
-      "TRUE_COLOR": 256,
-      "INSERT_POINT_X": 236155.0,
-      "INSERT_POINT_Y": 25100.0,
-      "INSERT_POINT_Z": 0.0,
-      "CENTER_POINT_X": 236155.0,
-      "CENTER_POINT_Y": 25100.0,
-      "CAD_BLOCK_ID": "3EE6A",
-      "DISTRIBUTION_BOX": true
-    },
+2026-05-19 11:51:44 - backen-fastapi - INFO - ------------------------------2026-05-19 11:51:44.217408接收FID图纸数据回填参数------------------------------
+✅ 已连接到 FTP: 10.22.13.66
+remote_filename='/EFMS/YMTC/Fab1/_System/PW/YMTC^FID.PCW^FAB1^F2.dxf'
+Traceback (most recent call last):
+  File "/app/app/fid/utils/ftp_download.py", line 77, in download_file_from_ftp
+    ftp.retrbinary(f'RETR {remote_filename}', f.write)
+  File "/usr/lib/python3.10/ftplib.py", line 436, in retrbinary
+    with self.transfercmd(cmd, rest) as conn:
+  File "/usr/lib/python3.10/ftplib.py", line 393, in transfercmd
+    return self.ntransfercmd(cmd, rest)[0]
+  File "/usr/lib/python3.10/ftplib.py", line 359, in ntransfercmd
+    resp = self.sendcmd(cmd)
+  File "/usr/lib/python3.10/ftplib.py", line 281, in sendcmd
+    return self.getresp()
+  File "/usr/lib/python3.10/ftplib.py", line 254, in getresp
+    raise error_perm(resp)
+ftplib.error_perm: 550 Failed to open file.
+
+Traceback (most recent call last):
+  File "/app/app/fid/utils/ftp_download.py", line 77, in download_file_from_ftp
+    ftp.retrbinary(f'RETR {remote_filename}', f.write)
+  File "/usr/lib/python3.10/ftplib.py", line 436, in retrbinary
+    with self.transfercmd(cmd, rest) as conn:
+  File "/usr/lib/python3.10/ftplib.py", line 393, in transfercmd
+    return self.ntransfercmd(cmd, rest)[0]
+  File "/usr/lib/python3.10/ftplib.py", line 359, in ntransfercmd
+    resp = self.sendcmd(cmd)
+  File "/usr/lib/python3.10/ftplib.py", line 281, in sendcmd
+    return self.getresp()
+  File "/usr/lib/python3.10/ftplib.py", line 254, in getresp
+    raise error_perm(resp)
+ftplib.error_perm: 550 Failed to open file.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/app/fid/api.py", line 361, in sync_write_fid
+    download_file_from_ftp(
+  File "/app/app/fid/utils/ftp_download.py", line 85, in download_file_from_ftp
+    raise Exception(f"❌ FTP 下载失败: {e}")
+Exception: ❌ FTP 下载失败: 550 Failed to open file.
+INFO:     10.27.206.226:5143 - "POST /api/write_fid HTTP/1.1" 200 OK
