@@ -4,6 +4,8 @@ SLD 校验主流程：解析 → 规范性 → 柱网 → 变更 → 组装返�
 from __future__ import annotations
 
 import json
+import re
+from collections import defaultdict
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
@@ -116,45 +118,86 @@ def _allowed_owner_codes(equipment_group_list: List[dict], building_level: dict)
     return out
 
 
+_XY_PAIR_RE = re.compile(r"X:\s*([^,]+),\s*Y:\s*(.+)$")
+
+
 def _issue_to_diff_line(issue: SldIssue) -> str:
-    """单条 warning/error issue 转为 diffContent 描述行。"""
+    """单条 warning issue 转为设备级 description 描述行。"""
     return f"{issue.name} | {issue.description} | {json.dumps(issue.detail, ensure_ascii=False)}"
 
 
-def _merge_eqp_into_diff_content(
-    eqp_data: List[Dict[str, Any]],
-    devices_in_order: List[SldDevice],
+def _parse_xy_pair(text: Any) -> tuple[str, str]:
+    m = _XY_PAIR_RE.match(str(text or "").strip())
+    if not m:
+        return "", ""
+    return m.group(1).strip(), m.group(2).strip()
+
+
+def _issue_to_field_diff_lines(issue: SldIssue) -> List[str]:
+    """将单条变更 issue 转为字段级 diffContent：``字段名（旧值，新值）``。"""
+    name = issue.name
+    det = issue.detail or {}
+    if name in ("设备新增", "设备删除"):
+        return []
+    if name == "设备属性修改":
+        label = str(det.get("属性字段") or "属性")
+        old_v = str(det.get("FROM") or "")
+        new_v = str(det.get("TO") or "")
+        return [f"{label}（{old_v}，{new_v}）"]
+    if name in ("设备位置变更", "设备位置变更(TOOL_ID)"):
+        ox, oy = _parse_xy_pair(det.get("FROM"))
+        nx, ny = _parse_xy_pair(det.get("TO"))
+        lines: List[str] = []
+        if ox != nx:
+            lines.append(f"centerPointX（{ox}，{nx}）")
+        if oy != ny:
+            lines.append(f"centerPointY（{oy}，{ny}）")
+        if not lines:
+            frm = str(det.get("FROM") or "")
+            to = str(det.get("TO") or "")
+            if frm or to:
+                lines.append(f"centerPoint（{frm}，{to}）")
+        return lines
+    return []
+
+
+def _build_success_data(
+    devices: List[SldDevice],
+    deleted_devices: List[SldDevice],
     warnings: List[SldIssue],
 ) -> List[Dict[str, Any]]:
-    """用 diff 描述行替换每台设备行的 ``description``，作为 ``diffContent`` 输出（不再单独返回 eqpData）。"""
-    last_line_by_dev: Dict[int, str] = {}
-    delete_line_by_key: Dict[str, str] = {}
-    orphan_lines: List[str] = []
+    """成功路径：``data`` 为变更设备列表，每台设备含 ``description`` 与字段级 ``diffContent``。"""
+    issues_by_dev: Dict[int, List[SldIssue]] = defaultdict(list)
+    delete_issue_by_key: Dict[str, SldIssue] = {}
 
     for issue in warnings:
-        line = _issue_to_diff_line(issue)
         d = issue.device
         if d is not None:
-            last_line_by_dev[id(d)] = line
+            issues_by_dev[id(d)].append(issue)
             continue
         biz_key = str(issue.detail.get("ID_EQU+ID_EquSubShort") or "").strip()
         if issue.name == "设备删除" and biz_key:
-            delete_line_by_key[biz_key] = line
-        else:
-            orphan_lines.append(line)
+            delete_issue_by_key[biz_key] = issue
 
     out: List[Dict[str, Any]] = []
-    assert len(eqp_data) == len(devices_in_order)
-    for row, d in zip(eqp_data, devices_in_order):
-        merged = dict(row)
-        line = last_line_by_dev.get(id(d))
-        if line is None and merged.get("operation") == "delete":
-            line = delete_line_by_key.get(business_key(d))
-        merged["description"] = line
-        out.append(merged)
+    for d in list(devices) + list(deleted_devices):
+        if not d.operation:
+            continue
 
-    for line in orphan_lines:
-        out.append({"description": line})
+        dev_issues = list(issues_by_dev.get(id(d), []))
+        if d.operation == "delete" and not dev_issues:
+            del_issue = delete_issue_by_key.get(business_key(d))
+            if del_issue:
+                dev_issues = [del_issue]
+
+        diff_lines: List[str] = []
+        for issue in dev_issues:
+            diff_lines.extend(_issue_to_field_diff_lines(issue))
+
+        row = device_to_eqp_dict(d)
+        row["description"] = _issue_to_diff_line(dev_issues[-1]) if dev_issues else None
+        row["diffContent"] = diff_lines
+        out.append(row)
 
     return out
 
@@ -418,18 +461,15 @@ def run_sld_check(params: Dict[str, Any]) -> Dict[str, Any]:
                 "data": error_data,
             }
 
-        # 成功路径：data 仅含 diffContent；每条为原 eqpData 设备行，
-        # description 替换为对应 warning 的 diff 描述行（未变更设备为 null）。
-        devices_in_order: List[SldDevice] = list(devices) + list(deleted_devices)
-        eqp_data = [device_to_eqp_dict(d) for d in devices_in_order]
-        diff_content = _merge_eqp_into_diff_content(eqp_data, devices_in_order, warnings)
+        # 成功路径：data 为变更设备列表（add/update/delete），每台含 description + diffContent。
+        success_data = _build_success_data(devices, deleted_devices, warnings)
 
-        logger.info("[SLD] 校验结束 success=True diff_content_count=%s", len(diff_content))
+        logger.info("[SLD] 校验结束 success=True changed_row_count=%s", len(success_data))
         return {
             "code": 200,
             "message": "调用成功",
             "success": True,
-            "data": [{"diffContent": diff_content}],
+            "data": success_data,
         }
     except Exception as e:
         logger.exception("[SLD] 校验流程异常 mission_start_time=%s", mission_start_time)
