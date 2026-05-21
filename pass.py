@@ -262,7 +262,7 @@ def _build_error_data_per_device(
     - 同一台设备的多条 error 会合并到 ``errors`` 列表，按 description 去重。
     - 没有 device 关联的 error（如文件名错误、唯一性聚合错误）合并为
       一行"全局错误虚拟设备行"（所有设备字段为 None）放在末尾。
-    - 仅有 warning、有 ``operation`` 且无 error 的变更设备也会追加一行（保留 operation）。
+    - 仅有 warning、无 error 的变更设备不单独输出（``success=false`` 时只返回有错设备）。
     - 命中 error 的设备行不输出 ``operation``。
     """
     warnings_by_dev = _index_issues_by_device(warning_issues or [])
@@ -293,7 +293,6 @@ def _build_error_data_per_device(
         by_dev[key].append(item)
 
     out: List[Dict[str, Any]] = []
-    emitted_dev_ids: set[int] = set()
     for d in list(devices) + list(deleted_devices):
         errs = by_dev.get(id(d))
         if not errs:
@@ -302,17 +301,6 @@ def _build_error_data_per_device(
         row.pop("operation", None)
         row["errors"] = errs
         _attach_warnings_to_row(row, warnings_by_dev.get(id(d), []))
-        out.append(row)
-        emitted_dev_ids.add(id(d))
-
-    for d in list(devices) + list(deleted_devices):
-        if not d.operation or id(d) in emitted_dev_ids:
-            continue
-        dev_warnings = warnings_by_dev.get(id(d), [])
-        if not dev_warnings:
-            continue
-        row = device_to_eqp_dict(d, default_building_level=default_building_level)
-        _attach_warnings_to_row(row, dev_warnings)
         out.append(row)
 
     if global_errors:
