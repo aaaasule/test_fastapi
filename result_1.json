@@ -2,7 +2,112 @@
   "code": 200,
   "message": "调用成功",
   "success": true,
-  "data": {
-    "interfaces": [],
-    "field": []
-  }
+  "data": [
+    {
+      "idEqu": "ATRMA02",
+      "idEquSubShort": "TRANSFORM",
+      "equipmentCode": "ATRMA02",
+      "equSubShort": "TRANSFORM",
+      "toolId": null,
+      "owner": null,
+      "groupCode": null,
+      "vendor": null,
+      "model": null,
+      "bayLocation": null,
+      "records": null,
+      "cadBlockName": "DISCO_TRANSFORM",
+      "gridX": "37",
+      "gridY": "X",
+      "layer": "904_JGS_45K_PEPPER_TOOL",
+      "angle": 270.0,
+      "trueColor": 253,
+      "insertPointX": 258850.0,
+      "insertPointY": 159700.0,
+      "insertPointZ": 0.0,
+      "centerPointX": 258950.0,
+      "centerPointY": 159415.0,
+      "centerPointZ": 0.0,
+      "cadBlockId": "508C6",
+      "operation": "update",
+      "id": 99,
+      "fabId": 1,
+      "buildingId": 1,
+      "buildingLevel": "F2",
+      "warnings": [
+        {
+          "warningName": "关键属性缺失",
+          "warningType": "warning",
+          "warningDescription": "缺少关键业务属性：OWNER, VENDOR, MODEL"
+        },
+        {
+          "warningName": "设备属性修改",
+          "warningType": "warning",
+          "warningDescription": "同样ID_EQU+ID_EquSubShort设备和上一版相比属性修改"
+        },
+        {
+          "warningName": "设备属性修改",
+          "warningType": "warning",
+          "warningDescription": "同样ID_EQU+ID_EquSubShort设备和上一版相比属性修改"
+        }
+      ],
+      "description": "关键属性缺失 | 缺少关键业务属性：OWNER, VENDOR, MODEL | {\"ID_EQU+ID_EquSubShort\": \"ATRMA02+TRANSFORM\", \"坐标X\": 258950.0, \"坐标Y\": 159415.0, \"TOOL_ID\": null, \"block_id\": \"508C6\", \"缺少属性字段\": \"OWNER, VENDOR, MODEL\"}; 设备属性修改 | 同样ID_EQU+ID_EquSubShort设备和上一版相比属性修改 | {\"ID_EQU+ID_EquSubShort\": \"ATRMA02+TRANSFORM\", \"属性字段\": \"OWNER\", \"FROM\": \"CMP\", \"TO\": \"\", \"坐标X\": 258950.0, \"坐标Y\": 159415.0}; 设备属性修改 | 同样ID_EQU+ID_EquSubShort设备和上一版相比属性修改 | {\"ID_EQU+ID_EquSubShort\": \"ATRMA02+TRANSFORM\", \"属性字段\": \"MODEL\", \"FROM\": \"FOR DTU1550\", \"TO\": \"\", \"坐标X\": 258950.0, \"坐标Y\": 159415.0}",
+      "diffContent": [
+        "OWNER（CMP，）",
+        "MODEL（FOR DTU1550，）"
+      ]
+    },
+    {
+      "idEqu": "AGRDA04",
+      "idEquSubShort": "TRANSFORM",
+      "equipmentCode": "AGRDA04",
+      "equSubShort": "TRANSFORM",
+      "toolId": null,
+      "owner": null,
+      "groupCode": null,
+      "vendor": null,
+      "model": null,
+      "bayLocation": null,
+      "records": null,
+      "cadBlockName": "DISCO_TRANSFORM",
+      "gridX": "36",
+      "gridY": "X",
+      "layer": "904_JGS_45K_PEPPER_TOOL",
+      "angle": 270.0,
+      "trueColor": 240,
+      "insertPointX": 250120.9753,
+      "insertPointY": 159904.8765,
+      "insertPointZ": 0.0,
+      "centerPointX": 250220.9753,
+      "centerPointY": 159619.8765,
+      "centerPointZ": 0.0,
+      "cadBlockId": "50920",
+      "operation": "update",
+      "id": 98,
+      "fabId": 1,
+      "buildingId": 1,
+      "buildingLevel": "F2",
+      "warnings": [
+        {
+          "warningName": "关键属性缺失",
+          "warningType": "warning",
+          "warningDescription": "缺少关键业务属性：OWNER, VENDOR, MODEL"
+        },
+        {
+          "warningName": "设备属性修改",
+          "warningType": "warning",
+          "warningDescription": "同样ID_EQU+ID_EquSubShort设备和上一版相比属性修改"
+        },
+        {
+          "warningName": "设备属性修改",
+          "warningType": "warning",
+          "warningDescription": "同样ID_EQU+ID_EquSubShort设备和上一版相比属性修改"
+        }
+      ],
+      "description": "关键属性缺失 | 缺少关键业务属性：OWNER, VENDOR, MODEL | {\"ID_EQU+ID_EquSubShort\": \"AGRDA04+TRANSFORM\", \"坐标X\": 250220.9753, \"坐标Y\": 159619.8765, \"TOOL_ID\": null, \"block_id\": \"50920\", \"缺少属性字段\": \"OWNER, VENDOR, MODEL\"}; 设备属性修改 | 同样ID_EQU+ID_EquSubShort设备和上一版相比属性修改 | {\"ID_EQU+ID_EquSubShort\": \"AGRDA04+TRANSFORM\", \"属性字段\": \"OWNER\", \"FROM\": \"CMP\", \"TO\": \"\", \"坐标X\": 250220.9753, \"坐标Y\": 159619.8765}; 设备属性修改 | 同样ID_EQU+ID_EquSubShort设备和上一版相比属性修改 | {\"ID_EQU+ID_EquSubShort\": \"AGRDA04+TRANSFORM\", \"属性字段\": \"MODEL\", \"FROM\": \"FOR DTU1550\", \"TO\": \"\", \"坐标X\": 250220.9753, \"坐标Y\": 159619.8765}",
+      "diffContent": [
+        "OWNER（CMP，）",
+        "MODEL（FOR DTU1550，）"
+      ]
+    }
+  ]
+}
