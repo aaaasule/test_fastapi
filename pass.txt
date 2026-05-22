@@ -1,34 +1,7 @@
-  {
-    "id_equ": "ATRMA02",
-    "id_equ_sub_short": "TRANSFORM",
-    "tool_id": null,
-    "owner": null,
-    "vendor": null,
-    "model": null,
-    "bay_location": null,
-    "records": null,
-    "grid_x": null,
-    "grid_y": null,
-    "block_name": "DISCO_TRANSFORM",
-    "layer": "904_JGS_45K_PEPPER_TOOL",
-    "angle": 270.0,
-    "true_color": 253,
-    "insert_point_x": 258850.0,
-    "insert_point_y": 159700.0,
-    "insert_point_z": 0.0,
-    "center_point_x": 258950.0,
-    "center_point_y": 159415.0,
-    "center_point_z": 0.0,
-    "block_id": "508C6",
-    "operation": null,
-    "eld_source_row": null,
-    "equipment_source_row": null,
-    "raw_attrib_tags": [
-      "ID_EQU",
-      "ID_EQUSUBSHORT",
-      "RECORDS",
-      "RTUR",
-      "TTT",
-      "TYYTY"
-    ]
-  },
+			app/fid/api.py
+			app/fid/utils/write_fid_writer.py
+			app/sld/validators/specs/common.py
+			app/sld/validators/specs/required.py
+			app/sld/validators/specs/id_equ_format.py
+			app/sld/validators/change/common.py
+			app/sld/validators/change/attribute_modified.py
