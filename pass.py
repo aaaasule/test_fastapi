@@ -1,104 +1,78 @@
-"""关键属性缺失（无 tag）+ 必填项空值校验。
-
-两类问题分别归类（结合 ``raw_attrib_tags`` 与解析后的字段值）：
-- "关键属性缺失"：图块上无对应 ATTRIB tag
-- "必填项缺失"：tag 存在但值为 None 或空字符串
-"""
+"""规范性校验公共工具：业务键 + 详情模板 + 关键属性配置。"""
 from __future__ import annotations
 
-from typing import List
+from typing import Dict, Tuple
 
-from app.sld.models import SldDevice, SldFileContext, SldIssue
-from app.sld.validators.specs.base import BaseSpecRule
-from app.sld.validators.specs.common import (
-    ERROR_KEY_ATTRS,
-    WARNING_KEY_ATTRS,
-    attr_on_device,
-    attr_value_empty,
-    attrib_tag_present,
-    base_detail,
-)
+from app.sld.models import SldDevice
 
+# 关键业务属性（用于必填/缺失校验）
+ERROR_KEY_ATTRS: Tuple[str, ...] = ("ID_EQU", "ID_EquSubShort")
+WARNING_KEY_ATTRS: Tuple[str, ...] = ("OWNER", "VENDOR", "MODEL")
+KEY_ATTRS: Tuple[str, ...] = ERROR_KEY_ATTRS + WARNING_KEY_ATTRS
+KEY_ATTR_KEYS: Dict[str, str] = {
+    "ID_EQU": "id_equ",
+    "ID_EquSubShort": "id_equ_sub_short",
+    "OWNER": "owner",
+    "VENDOR": "vendor",
+    "MODEL": "model",
+}
 
-def _collect_missing_and_empty(
-    d: SldDevice,
-    logical_attrs: tuple[str, ...],
-) -> tuple[List[str], List[str]]:
-    missing_tags: List[str] = []
-    empty_fields: List[str] = []
-    for logical in logical_attrs:
-        val = attr_on_device(d, logical)
-        if not attr_value_empty(val):
-            continue
-        if attrib_tag_present(d, logical):
-            empty_fields.append(logical)
-        else:
-            missing_tags.append(logical)
-    return missing_tags, empty_fields
-
-
-def _append_required_issues(
-    out: List[SldIssue],
-    d: SldDevice,
-    *,
-    issue_type: str,
-    missing_tags: List[str],
-    empty_fields: List[str],
-) -> None:
-    if missing_tags:
-        joined = ", ".join(missing_tags)
-        det = base_detail(d)
-        det["缺少属性字段"] = joined
-        out.append(
-            SldIssue(
-                type=issue_type,
-                name="关键属性缺失",
-                description=f"缺少关键业务属性：{joined}",
-                detail=det,
-                device=d,
-            )
-        )
-    if empty_fields:
-        joined = ", ".join(empty_fields)
-        det2 = base_detail(d)
-        det2["未填写字段"] = joined
-        out.append(
-            SldIssue(
-                type=issue_type,
-                name="必填项缺失",
-                description=f"必填项未填写：{joined}",
-                detail=det2,
-                device=d,
-            )
-        )
+# 与 parser 中 ATTRIB tag 一致（大写），用于区分「无 tag」与「有 tag 但值为空」
+KEY_ATTR_DXF_TAGS: Dict[str, Tuple[str, ...]] = {
+    "ID_EQU": ("ID_EQU",),
+    "ID_EquSubShort": (
+        "ID_EQUSUBSHORT",
+        "ID_EQU_SUB_SHORT",
+        "ID_EQUSUB_SHORT",
+        "ID_EQU_SUBSHORT",
+    ),
+    "OWNER": ("OWNER", "EQU.GROUP"),
+    "VENDOR": ("VENDOR",),
+    "MODEL": ("MODEL",),
+}
 
 
-class RequiredRule(BaseSpecRule):
-    name = "关键属性必填"
-    type = "error"
-    order = 40
+def business_key(d: SldDevice) -> str:
+    """业务键：``"<id_equ>+<id_equ_sub_short>"``，未填字段保留为空。"""
+    ie = (d.id_equ or "").strip()
+    sub = (d.id_equ_sub_short or "").strip()
+    return f"{ie}+{sub}"
 
-    def check(
-        self,
-        ctx: SldFileContext,
-        devices: List[SldDevice],
-    ) -> List[SldIssue]:
-        out: List[SldIssue] = []
-        for d in devices:
-            error_missing, error_empty = _collect_missing_and_empty(d, ERROR_KEY_ATTRS)
-            warning_missing, warning_empty = _collect_missing_and_empty(d, WARNING_KEY_ATTRS)
-            _append_required_issues(
-                out,
-                d,
-                issue_type="error",
-                missing_tags=error_missing,
-                empty_fields=error_empty,
-            )
-            _append_required_issues(
-                out,
-                d,
-                issue_type="warning",
-                missing_tags=warning_missing,
-                empty_fields=warning_empty,
-            )
-        return out
+
+def base_detail(d: SldDevice) -> dict:
+    """各 spec issue.detail 的公共字段。"""
+    return {
+        "ID_EQU+ID_EquSubShort": business_key(d),
+        "坐标X": d.center_point_x,
+        "坐标Y": d.center_point_y,
+        "TOOL_ID": d.tool_id,
+        "block_id": d.block_id,
+    }
+
+
+def attr_on_device(d: SldDevice, logical: str) -> str | None:
+    """根据逻辑字段名（KEY_ATTRS 之一）取设备上的实际属性值。"""
+    key = KEY_ATTR_KEYS[logical]
+    return getattr(d, key, None)
+
+
+def _raw_tag_set(d: SldDevice) -> set[str]:
+    return {str(t).strip().upper() for t in (d.raw_attrib_tags or [])}
+
+
+def attrib_tag_present(d: SldDevice, logical: str) -> bool:
+    """图块 ATTRIB 中是否包含该逻辑字段对应的任一 DXF tag。"""
+    tags = _raw_tag_set(d)
+    for candidate in KEY_ATTR_DXF_TAGS.get(logical, ()):
+        if candidate.upper() in tags:
+            return True
+    return False
+
+
+def attr_value_empty(val: str | None) -> bool:
+    """属性值视为未填写：None 或空白字符串。"""
+    if val is None:
+        return True
+    if isinstance(val, str):
+        return val.strip() == ""
+    return False
