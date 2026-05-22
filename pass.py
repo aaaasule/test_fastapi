@@ -19,6 +19,8 @@ from app.fid.utils.write_fid.write_dispatch import dispatch_write_equipment_by_b
 
 WRITE_FID_OUTPUT_REL_DIR = "fid_with_assignment"
 WRITE_FID_OUTPUT_ABS_DIR = Path("/EFMS") / WRITE_FID_OUTPUT_REL_DIR
+# FTP 上传远端路径前缀（与服务器目录 /EFMS/fid_with_assignment 对应）
+WRITE_FID_FTP_REMOTE_PREFIX = "EFMS/fid_with_assignment"
 TAKEOFF_DEFAULT_COLOR = 8
 TAKEOFF_ASSIGNED_COLOR = 1
 TAKEOFF_SYSTEM_CODES = {"PA", "PD", "PE", "PV", "PP", "PW"}
@@ -380,12 +382,15 @@ def build_write_fid_output_path(file_path: str) -> Tuple[Path, str]:
     return out_file, rel_path
 
 
-def build_write_fid_ftp_result_names(source_stem: str) -> Tuple[str, str]:
+def build_write_fid_ftp_result_names(source_stem: str) -> Tuple[str, str, str]:
     """
-    回填结果文件名及 FTP/API 返回用的相对路径：
-    返回 (out_filename, rel_path)，rel_path 形如 fid_with_assignment/{stem}_{时间戳}.dxf
+    回填结果文件名、FTP 上传路径与 API 响应 data 路径。
+    返回 (out_filename, ftp_remote_path, api_data_path)：
+    - ftp_remote_path: EFMS/fid_with_assignment/{stem}_{时间戳}.dxf
+    - api_data_path: fid_with_assignment/{stem}_{时间戳}.dxf
     """
     ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     out_name = f"{source_stem}_{ts}.dxf"
-    rel_path = f"{WRITE_FID_OUTPUT_REL_DIR}/{out_name}"
-    return out_name, rel_path
+    ftp_remote_path = f"{WRITE_FID_FTP_REMOTE_PREFIX}/{out_name}"
+    api_data_path = f"{WRITE_FID_OUTPUT_REL_DIR}/{out_name}"
+    return out_name, ftp_remote_path, api_data_path
