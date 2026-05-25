@@ -1,5 +1,11 @@
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker logs -f -n 100 thirsty_stallman
-unknown shorthand flag: 'n' in -n
-See 'docker logs --help'.
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker -v
-Docker version 1.13.1, build 7d71120/1.13.1
+ 65579 root      20   0 4277928   3.2g  16904 S 102.0 10.1  40:54.19 python3
+   906 root      20   0       0      0      0 S   0.3  0.0 173:39.79 xfsaild/dm-3
+   957 root      20   0  340604   7856   1496 S   0.3  0.0 327:49.55 vmtoolsd
+  4407 devadmin  20   0  213532  21180   5624 S   0.3  0.1   8:59.51 python
+  4711 zabbix    20   0   82628   1048    796 S   0.3  0.0 277:25.53 zabbix_agentd
+ 14847 devadmin  20   0  967232 166788   9556 S   0.3  0.5  16:06.21 python
+ 19044 root      20   0 2938856  31908   9688 S   0.3  0.1 219:56.56 dockerd-current
+ 61725 devadmin  20   0 1089028 100332  17372 S   0.3  0.3 169:20.72 python
+ 78951 devadmin  20   0 2088716   2204   1016 S   0.3  0.0 343:02.14 python3
+ 86854 root      20   0       0      0      0 S   0.3  0.0   0:00.17 kworker/u256:2
+ 93665 devadmin  20   0  162512   2780   1596 R   0.3  0.0   0:00.10 top
