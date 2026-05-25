@@ -1,3 +1,5 @@
-{'D.UTILIZATION_RATIO': '', 'D.FLOW_UNIT': '', 'D.DESIGN_FLOW': '', 'C.UTILIZATION_RATIO': '', 'C.FLOW_UNIT': '', 'C.DESIGN_FLOW': '', 'B.UTILIZATION_RATIO': '', 'B.FLOW_UNIT': '', 'B.DESIGN_FLOW': '', 'A.UTILIZATION_RA
-TIO': '', 'A.FLOW_UNIT': '', 'A.DESIGN_FLOW': '', 'ID.D': 'S2', 'EQU.D': 'ATUNA17', 'CS.D': '3/8"', 'CT.D': 'Ft', 'ID.C': 'R2', 'EQU.C': '', 'CS.C': '1/4"', 'CT.C': 'Ft', 'ID.B': 'R1', 'EQU.B': '', 'CS.B': '1/4"', 'CT.B': 'Ft', 
-'ID': 'Anji T800S;FAB1F2;e21Bw;07', 'ID.A': 'S1', 'EQU.A': '', 'CS.A': '3/8"', 'CT.A': 'Ft'}
+(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker logs -f -n 100 thirsty_stallman
+unknown shorthand flag: 'n' in -n
+See 'docker logs --help'.
+(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker -v
+Docker version 1.13.1, build 7d71120/1.13.1
