@@ -49,19 +49,38 @@ def match_id_short_family_equipment_code(
     return ""
 
 
+def _dot_tag_port_suffix(tag: str, prefix: str) -> str:
+    """从 ID.01 / EQU.22 等标签名解析端口段（不依赖属性值是否为空）。"""
+    if not tag.startswith(prefix):
+        return ""
+    return common.strip(tag[len(prefix) :])
+
+
+def _add_port_label(ports: Set[str], label: str) -> None:
+    label = common.strip(label)
+    if not label:
+        return
+    ports.add(label)
+    if label.isdigit():
+        ports.add(str(int(label)))
+        if len(label) == 1:
+            ports.add(label.zfill(2))
+
+
 def id_short_port_values(attrs: Dict[str, str]) -> Set[str]:
-    """图块上 ID.xx 取值及标签后缀，用于与 uniCode 末段对齐。"""
+    """
+    图块端口集合：ID.xx / EQU.xx 标签后缀 + 非空的 ID.xx 取值。
+    母线等图块常把 ID.01～ID.36 留空，仅通过标签名表示槽位。
+    """
     ports: Set[str] = set()
-    for id_tag, val in common.id_dot_entries(attrs):
-        v = common.strip(val)
-        if v:
-            ports.add(v)
-        if len(id_tag) > 3:
-            suf = common.strip(id_tag[3:])
-            if suf:
-                ports.add(suf)
-                if suf.isdigit():
-                    ports.add(str(int(suf)))
+    for tag, val in attrs.items():
+        if tag.startswith("ID.") and tag != "ID":
+            _add_port_label(ports, _dot_tag_port_suffix(tag, "ID."))
+            v = common.strip(val)
+            if v:
+                _add_port_label(ports, v)
+        elif tag.startswith("EQU."):
+            _add_port_label(ports, _dot_tag_port_suffix(tag, "EQU."))
     return ports
 
 
@@ -78,7 +97,7 @@ def id_short_item_matches_insert(attrs: Dict[str, str], item: dict) -> bool:
     if not last:
         return False
     port_vals = id_short_port_values(attrs)
-    if not last in port_vals:
+    if port_vals and last not in port_vals:
         return False
     for field in ("uniCode", "code"):
         uc = common.strip(item.get(field))
@@ -97,7 +116,7 @@ def find_id_short_matched_interfaces(
 ) -> List[dict]:
     """同一 INSERT 下按 ID_SHORT + 各端口末段关联多条入参接口。"""
     id_short = common.strip(insert_attrs.get("ID_SHORT"))
-    if not id_short or not id_short_port_values(insert_attrs):
+    if not id_short:
         return []
 
     if match_ctx is not None:
