@@ -11,14 +11,57 @@ KiB Swap: 33554428 total, 32971848 free,   582580 used. 29504752 avail Mem
 
 
 
-(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker logs -f --tail 100 thirsty_stallman | grep  write_fid
-2026-05-25 14:46:34 - write_fid - INFO - ------------------------------2026-05-25 14:46:34.402194接收FID图纸数据回填参数------------------------------
-2026-05-25 14:46:35 - write_fid - INFO - FID回填耗时: FTP下载源图 0.157s (remote=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf)
-2026-05-25 14:46:58 - write_fid - INFO - FID回填耗时: 读取DXF 23.325s
-2026-05-25 14:46:58 - write_fid - INFO - FID回填耗时: 清空EQU属性 0.137s (cleared=3859)
-2026-05-25 14:59:03 - write_fid - INFO - FID回填耗时: 写入设备编码 724.999s (assigned=3874, written=3874)
-2026-05-25 14:59:04 - write_fid - INFO - FID回填耗时: Takeoff着色 0.792s (gray_entities=74310, assigned_inserts=3874)
-2026-05-25 14:59:16 - write_fid - INFO - FID回填耗时: 保存DXF 12.143s (path=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2/回填图纸-YMTC^FID.PA^FAB1^F2-save-20260525_144634.dxf)
-2026-05-25 14:59:16 - write_fid - INFO - FID回填耗时: FTP上传结果图 0.125s (remote=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525145904.dxf)
-2026-05-25 14:59:16 - write_fid - INFO - FID回填完成: 总耗时 762.350s, ftp_src=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf, local_work=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2, ftp_dst=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525145904.dxf, interfaces=9287, cleared_equ=3859, assigned=3874, written=3874, color_default=74310, color_assigned=3874
-2026-05-25 14:59:16 - write_fid - INFO - FID回填接口耗时(含线程调度): 762.351s
+26-05-25 15:17:22 - write_fid - INFO - FID回填耗时: 写入设备编码 732.901s (assigned=3874, written=3874)
+2026-05-25 15:17:23 - write_fid - INFO - FID回填耗时: Takeoff着色 0.783s (gray_entities=74310, assigned_inserts=3874)
+2026-05-25 15:17:35 - write_fid - INFO - FID回填耗时: 保存DXF 12.297s (path=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2/回填图纸-YMTC^FID.PA^FAB1^F2-save-20260525_150443.dxf)
+2026-05-25 15:17:35 - write_fid - INFO - FID回填耗时: FTP上传结果图 0.199s (remote=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525151723.dxf)
+2026-05-25 15:17:35 - write_fid - INFO - FID回填完成: 总耗时 772.557s, ftp_src=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf, local_work=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2, ftp_dst=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525151723.dxf, interfaces=9287, cleared_equ=3859, assigned=3874, written=3874, color_default=74310, color_assigned=3874
+2026-05-25 15:17:35 - write_fid - INFO - FID回填接口耗时(含线程调度): 772.558s
+INFO:     10.27.206.77:4023 - "POST /api/write_fid HTTP/1.1" 200 OK
+2026-05-25 15:18:50 - write_fid - INFO - ------------------------------2026-05-25 15:18:50.181434接收FID图纸数据回填参数------------------------------
+2026-05-25 15:18:51 - write_fid - INFO - FID回填耗时: FTP下载源图 0.180s (remote=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf)
+2026-05-25 15:19:14 - write_fid - INFO - FID回填耗时: 读取DXF 23.342s
+2026-05-25 15:19:14 - write_fid - INFO - FID回填耗时: 清空EQU属性 0.086s (cleared=3859)
+2026-05-25 15:19:15 - write_fid - INFO - FID回填: 开始写入设备编码, INSERT总数=9301, 接口数=9287, 已派点=3874
+2026-05-25 15:19:15 - write_fid - INFO - FID回填耗时: 写入设备编码 1.270s (assigned=3874, written=3874)
+2026-05-25 15:19:16 - write_fid - INFO - FID回填耗时: Takeoff着色 0.837s (gray_entities=74310, assigned_inserts=3874)
+2026-05-25 15:19:28 - write_fid - INFO - FID回填耗时: 保存DXF 12.224s (path=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2/回填图纸-YMTC^FID.PA^FAB1^F2-save-20260525_151850.dxf)
+2026-05-25 15:19:29 - write_fid - INFO - FID回填耗时: FTP上传结果图 0.171s (remote=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525151916.dxf)
+2026-05-25 15:19:29 - write_fid - INFO - FID回填完成: 总耗时 38.702s, ftp_src=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf, local_work=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2, ftp_dst=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525151916.dxf, interfaces=9287, cleared_equ=3859, assigned=3874, written=3874, color_default=74310, color_assigned=3874
+2026-05-25 15:19:29 - write_fid - INFO - FID回填接口耗时(含线程调度): 38.703s
+INFO:     10.22.64.89:59322 - "POST /api/write_fid HTTP/1.1" 200 OK
+2026-05-25 15:20:07 - write_fid - INFO - ------------------------------2026-05-25 15:20:07.332496接收FID图纸数据回填参数------------------------------
+2026-05-25 15:20:08 - write_fid - INFO - FID回填耗时: FTP下载源图 0.136s (remote=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf)
+2026-05-25 15:20:34 - write_fid - INFO - FID回填耗时: 读取DXF 25.761s
+2026-05-25 15:20:34 - write_fid - INFO - FID回填耗时: 清空EQU属性 0.098s (cleared=3859)
+2026-05-25 15:20:34 - write_fid - INFO - FID回填: 开始写入设备编码, INSERT总数=9301, 接口数=9287, 已派点=3874
+2026-05-25 15:20:34 - write_fid - INFO - FID回填耗时: 写入设备编码 0.532s (assigned=3874, written=3874)
+2026-05-25 15:20:35 - write_fid - INFO - FID回填耗时: Takeoff着色 0.813s (gray_entities=74310, assigned_inserts=3874)
+2026-05-25 15:20:47 - write_fid - INFO - FID回填耗时: 保存DXF 12.000s (path=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2/回填图纸-YMTC^FID.PA^FAB1^F2-save-20260525_152007.dxf)
+2026-05-25 15:20:47 - write_fid - INFO - FID回填耗时: FTP上传结果图 0.144s (remote=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525152035.dxf)
+2026-05-25 15:20:47 - write_fid - INFO - FID回填完成: 总耗时 40.135s, ftp_src=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf, local_work=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2, ftp_dst=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525152035.dxf, interfaces=9287, cleared_equ=3859, assigned=3874, written=3874, color_default=74310, color_assigned=3874
+2026-05-25 15:20:47 - write_fid - INFO - FID回填接口耗时(含线程调度): 40.136s
+INFO:     10.22.64.89:59592 - "POST /api/write_fid HTTP/1.1" 200 OK
+2026-05-25 15:21:05 - write_fid - INFO - ------------------------------2026-05-25 15:21:05.642852接收FID图纸数据回填参数------------------------------
+2026-05-25 15:21:06 - write_fid - INFO - FID回填耗时: FTP下载源图 0.195s (remote=/EFMS/YMTC/Fab1/_System/PC/YMTC^FID.PC^FAB1^F2.dxf)
+2026-05-25 15:21:19 - write_fid - INFO - FID回填耗时: 读取DXF 13.304s
+2026-05-25 15:21:19 - write_fid - INFO - FID回填耗时: 清空EQU属性 0.048s (cleared=2401)
+2026-05-25 15:21:20 - write_fid - INFO - FID回填: 开始写入设备编码, INSERT总数=1023, 接口数=4036, 已派点=2430
+2026-05-25 15:21:20 - write_fid - INFO - FID回填耗时: 写入设备编码 0.701s (assigned=2430, written=756)
+2026-05-25 15:21:20 - write_fid - INFO - FID回填耗时: Takeoff着色 0.046s (gray_entities=0, assigned_inserts=0)
+2026-05-25 15:21:31 - write_fid - INFO - FID回填耗时: 保存DXF 10.829s (path=/app/app/fid/temp_uploads/YMTC^FID.PC^FAB1^F2/回填图纸-YMTC^FID.PC^FAB1^F2-save-20260525_152105.dxf)
+2026-05-25 15:21:31 - write_fid - INFO - FID回填耗时: FTP上传结果图 0.109s (remote=EFMS/fid_with_assignment/YMTC^FID.PC^FAB1^F2_20260525152120.dxf)
+2026-05-25 15:21:31 - write_fid - INFO - FID回填完成: 总耗时 25.512s, ftp_src=/EFMS/YMTC/Fab1/_System/PC/YMTC^FID.PC^FAB1^F2.dxf, local_work=/app/app/fid/temp_uploads/YMTC^FID.PC^FAB1^F2, ftp_dst=EFMS/fid_with_assignment/YMTC^FID.PC^FAB1^F2_20260525152120.dxf, interfaces=4036, cleared_equ=2401, assigned=2430, written=756, color_default=0, color_assigned=0
+2026-05-25 15:21:31 - write_fid - INFO - FID回填接口耗时(含线程调度): 25.513s
+INFO:     10.22.64.89:59632 - "POST /api/write_fid HTTP/1.1" 200 OK
+2026-05-25 15:22:22 - write_fid - INFO - ------------------------------2026-05-25 15:22:22.484903接收FID图纸数据回填参数------------------------------
+2026-05-25 15:22:24 - write_fid - INFO - FID回填耗时: FTP下载源图 1.206s (remote=/EFMS/YMTC/Fab2/_System/PW/YMTC^FID.PW^FAB2^F2.dxf)
+2026-05-25 15:24:15 - write_fid - INFO - FID回填耗时: 读取DXF 111.347s
+2026-05-25 15:24:16 - write_fid - INFO - FID回填耗时: 清空EQU属性 0.133s (cleared=6410)
+2026-05-25 15:24:16 - write_fid - INFO - FID回填: 开始写入设备编码, INSERT总数=12197, 接口数=10429, 已派点=2091
+2026-05-25 15:24:16 - write_fid - INFO - FID回填耗时: 写入设备编码 0.654s (assigned=2091, written=2091)
+2026-05-25 15:24:17 - write_fid - INFO - FID回填耗时: Takeoff着色 0.851s (gray_entities=85200, assigned_inserts=2091)
+2026-05-25 15:26:04 - write_fid - INFO - FID回填耗时: 保存DXF 106.893s (path=/app/app/fid/temp_uploads/YMTC^FID.PW^FAB2^F2/回填图纸-YMTC^FID.PW^FAB2^F2-save-20260525_152222.dxf)
+2026-05-25 15:26:05 - write_fid - INFO - FID回填耗时: FTP上传结果图 0.971s (remote=EFMS/fid_with_assignment/YMTC^FID.PW^FAB2^F2_20260525152417.dxf)
+2026-05-25 15:26:05 - write_fid - INFO - FID回填完成: 总耗时 222.803s, ftp_src=/EFMS/YMTC/Fab2/_System/PW/YMTC^FID.PW^FAB2^F2.dxf, local_work=/app/app/fid/temp_uploads/YMTC^FID.PW^FAB2^F2, ftp_dst=EFMS/fid_with_assignment/YMTC^FID.PW^FAB2^F2_20260525152417.dxf, interfaces=10429, cleared_equ=6410, assigned=2091, written=2091, color_default=85200, color_assigned=2091
+2026-05-25 15:26:05 - write_fid - INFO - FID回填接口耗时(含线程调度): 222.804s
