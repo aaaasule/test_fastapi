@@ -1,21 +1,10 @@
-from typing import Any, Dict
+import json
+
+#from app.fid.utils.check_device import check_which_device
+
+import traceback
+from typing import List, Any, Dict
 import re
-
-
-def has_id_dot_ports(equipment: Dict[str, Any]) -> bool:
-    """图块是否含 ID.xx 端口属性（旧母线/多端口接口）。"""
-    for key in equipment:
-        tag = str(key).upper()
-        if tag.startswith("ID.") and tag != "ID_SHORT" and len(tag) > 3:
-            return True
-    return False
-
-
-def _resolve_bus_block_type(equipment: Dict[str, Any]) -> str:
-    """BUS：有 ID.xx 为旧接口走 I_LINE 多端口；仅 ID 为新接口走 NEW_INTER_。"""
-    if has_id_dot_ports(equipment):
-        return "I_LINE"
-    return "NEW_INTER_"
 
 
 def check_which_device(equipment: Dict[str, Any], filename: Any):
@@ -45,10 +34,14 @@ def check_which_device(equipment: Dict[str, Any], filename: Any):
                     return 'GPB'
                 elif 'LINE' in equipment.get('ID_SHORT').upper():
                     return 'I_LINE'
-                elif 'BUS' in equipment.get('ID_SHORT').upper():
-                    return _resolve_bus_block_type(equipment)
+                elif 'BUS' in equipment.get('ID_SHORT', '').upper():
+                    from app.fid.utils.check_device import has_id_dot_ports
+
+                    if has_id_dot_ports(equipment):
+                        return 'I_LINE'
+                    return 'NEW_INTER_'
                 else:
-                    return 'I_LINE'
+                    return 'NEW_INTER_'
 
     if 'INTERFACE_CODE' in equipment:
         return 'TAKEOFF'
@@ -63,18 +56,63 @@ def check_which_device(equipment: Dict[str, Any], filename: Any):
             return 'GPB'
         elif 'LINE' in equipment.get('ID_SHORT', '').upper():
             return 'I_LINE'
-        elif 'BUS' in equipment.get('ID_SHORT').upper():
-            return _resolve_bus_block_type(equipment)
+        elif 'BUS' in equipment.get('ID_SHORT', '').upper():
+            from app.fid.utils.check_device import has_id_dot_ports
+
+            if has_id_dot_ports(equipment):
+                return 'I_LINE'
+            return 'NEW_INTER_'
 
     return 'I_LINE'
-    '''
-ES系统只校验有ID_short的块， 有GPB、ILINE可以确定块类， 如果没有根据 ID是否BUS开头判断是否是新旧接口。
-- 如果有BUS 并且有ID.X是旧接口，只有ID是新接口
-- 如果判断不出来那么认为是 [其他块], 用ILINE规则校验， 可以根据ID的前缀判断是什么块。ID前缀跟新接口相同有分类标识。
-
-- 旧接口不校验CS
-    '''
-
-    print(f"未识别device - {equipment=}")
 
 
+def parse_interface_code(code: str) -> dict:
+    if not isinstance(code, str):
+        code = str(code)
+
+    parts = code.split(';', 3)  # 最多分割3次 → 得到最多4个部分
+
+    # 确保有4个元素，不足则补空字符串
+    while len(parts) < 4:
+        parts.append('')
+
+    return {
+        'sub_system': parts[0],
+        'building_level': parts[1],
+        'field': parts[2],
+        'id': parts[3]
+    }
+
+
+def parse_search_id(result, system):
+    try:
+
+        #print(f"[parse_search_id] {result}")
+
+
+        system = system.get('name', '')
+
+        device = check_which_device(result.equipment[-1], f"FID.{system}")
+        #print(f"[parse_search_id] {device=}")
+
+        #print("")
+        if device == 'TAKEOFF':
+            return str(result.equipment[-1].get('UNI_CODE') or '')
+
+        elif device.startswith('VMB'):
+            return str(result.equipment[0]['UNI_CODE'] or '')
+
+        elif device in ['I_LINE', 'GPB']:
+            return str(result.equipment[0].get('CODE') or '')
+
+        elif device == 'NEW_INTER_':  # 新接口
+            return str(result.equipment[0].get('CODE') or '')
+        else:
+            return ''
+    except Exception as e:
+        print(traceback.format_exc())
+        # raise Exception(str(e))
+        return ''
+
+if __name__ == '__main__':
+    pass
