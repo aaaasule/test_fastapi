@@ -6,3 +6,19 @@ KiB Swap: 33554428 total, 32971848 free,   582580 used. 29504752 avail Mem
 
    PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND
 109718 root      20   0 1520540 565012  16676 S 100.0  1.7   7:05.28 python3
+
+
+
+
+
+(base) [devadmin@tmit1efms02 merge_interface_v2]$ sudo docker logs -f --tail 100 thirsty_stallman | grep  write_fid
+2026-05-25 14:46:34 - write_fid - INFO - ------------------------------2026-05-25 14:46:34.402194接收FID图纸数据回填参数------------------------------
+2026-05-25 14:46:35 - write_fid - INFO - FID回填耗时: FTP下载源图 0.157s (remote=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf)
+2026-05-25 14:46:58 - write_fid - INFO - FID回填耗时: 读取DXF 23.325s
+2026-05-25 14:46:58 - write_fid - INFO - FID回填耗时: 清空EQU属性 0.137s (cleared=3859)
+2026-05-25 14:59:03 - write_fid - INFO - FID回填耗时: 写入设备编码 724.999s (assigned=3874, written=3874)
+2026-05-25 14:59:04 - write_fid - INFO - FID回填耗时: Takeoff着色 0.792s (gray_entities=74310, assigned_inserts=3874)
+2026-05-25 14:59:16 - write_fid - INFO - FID回填耗时: 保存DXF 12.143s (path=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2/回填图纸-YMTC^FID.PA^FAB1^F2-save-20260525_144634.dxf)
+2026-05-25 14:59:16 - write_fid - INFO - FID回填耗时: FTP上传结果图 0.125s (remote=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525145904.dxf)
+2026-05-25 14:59:16 - write_fid - INFO - FID回填完成: 总耗时 762.350s, ftp_src=/EFMS/YMTC/Fab1/_System/PA/YMTC^FID.PA^FAB1^F2.dxf, local_work=/app/app/fid/temp_uploads/YMTC^FID.PA^FAB1^F2, ftp_dst=EFMS/fid_with_assignment/YMTC^FID.PA^FAB1^F2_20260525145904.dxf, interfaces=9287, cleared_equ=3859, assigned=3874, written=3874, color_default=74310, color_assigned=3874
+2026-05-25 14:59:16 - write_fid - INFO - FID回填接口耗时(含线程调度): 762.351s
