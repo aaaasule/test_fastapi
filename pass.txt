@@ -65,3 +65,8 @@ INFO:     10.22.64.89:59632 - "POST /api/write_fid HTTP/1.1" 200 OK
 2026-05-25 15:26:05 - write_fid - INFO - FID回填耗时: FTP上传结果图 0.971s (remote=EFMS/fid_with_assignment/YMTC^FID.PW^FAB2^F2_20260525152417.dxf)
 2026-05-25 15:26:05 - write_fid - INFO - FID回填完成: 总耗时 222.803s, ftp_src=/EFMS/YMTC/Fab2/_System/PW/YMTC^FID.PW^FAB2^F2.dxf, local_work=/app/app/fid/temp_uploads/YMTC^FID.PW^FAB2^F2, ftp_dst=EFMS/fid_with_assignment/YMTC^FID.PW^FAB2^F2_20260525152417.dxf, interfaces=10429, cleared_equ=6410, assigned=2091, written=2091, color_default=85200, color_assigned=2091
 2026-05-25 15:26:05 - write_fid - INFO - FID回填接口耗时(含线程调度): 222.804s
+
+
+
+
+{'UTILIZATION_RATIO': '', 'FLOW_UNIT': '', 'DESIGN_FLOW': '', 'EQUIPMENT_CODE': '', 'INTERFACE_CODE': 'PCWS;FAB2F2;2aWS03;02', 'CS': '2"', 'CT': 'FLf'}
