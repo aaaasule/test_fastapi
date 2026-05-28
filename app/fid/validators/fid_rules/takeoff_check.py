@@ -11,6 +11,7 @@ from app.fid.validators.base_rules import BaseRule
 from app.fid.models import  CheckResult
 
 from app.fid.utils.parse_block_attributes import parse_block_attributes
+from app.fid.validators.fid_rules.fid_required_field import _skip_cs_validation
 
 import pandas as pd
 
@@ -36,6 +37,7 @@ class TakeoffCSCTCheck(BaseRule):
             equipments = equipments[device]
 
         results = []
+        skip_cs = _skip_cs_validation(request_data)
 
         interface_pd = pd.DataFrame.from_dict(request_data['interface_list']).add_prefix('INTERFACE.')
 
@@ -83,21 +85,20 @@ class TakeoffCSCTCheck(BaseRule):
                 #print(f"{system_code=}")
                 _grouped = grouped[grouped['SYSTEM.system_code'] == system_code]
 
-                if _grouped.empty or \
+                if not skip_cs and (
+                        _grouped.empty or
                         (equipment_info.get('connection_size') and equipment_info.get('connection_size') not in
-                         _grouped.iloc[0].to_dict().get('SYSTEM.con_size')):
+                         _grouped.iloc[0].to_dict().get('SYSTEM.con_size'))
+                ):
 
                     # 如果是旧版本图纸，那么不校验cs
                     # if not request_data['fab']['name'].endswith(request_data['disable_fab']) and device not in ['TAKEOFF', 'VMB_CHEMICAL', 'VMB_GASNAME']:
-                    if request_data['fab']['name'].endswith(request_data['disable_fab']) and 'ES' in request_data['filename']:
-                        continue
                     results.append(CheckResult(
                         type=self.rule_type,
                         name="基于SDC校验CS、CT",
                         description=f"CS信息与SDC中设定不符",
                         detail=f"sub_system({equipment_info['connection_size']})与"
-                               f"SDC中设定不符",
-                        field_or_interface="interface",
+                                f"SDC中设定不符",
                         equipment=[eq, equipment_info],
                         device=device
                     ))
@@ -111,7 +112,6 @@ class TakeoffCSCTCheck(BaseRule):
                         description=f"CT信息与SDC中设定不符",
                         detail=f"sub_system({equipment_info['connection_type']})与"
                                f"SDC中设定不符",
-                        field_or_interface="interface",
                         equipment=[eq, equipment_info],
                         device=device
                     ))

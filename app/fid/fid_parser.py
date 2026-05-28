@@ -204,7 +204,8 @@ if __name__ == '__main__':
     from pathlib import Path
     from app.fid.utils.parse_block_attributes import parse_block_attributes
     import time
-    for file in Path('/data/new_merge_interface/app/fid_data').glob('*'):
+    # for file in Path('/data/new_merge_interface/app/fid_data').glob('*'):
+    for file in Path('doc/').glob('*'):
         print(file)
         start_time1 = time.time()
         equipments = fid_parse_dxf(file, Path(file).name)
@@ -212,7 +213,12 @@ if __name__ == '__main__':
         start_time2 = time.time()
         for device in equipments:
             for e in equipments[device]:
-                result = parse_block_attributes(e, Path(file).name)
-                for r in result:
-                    print(r)
+
+                if e.get('CAD_BLOCK_ID') == "18DBF2":
+                    print(f"*******************")
+                    print(e)
+                    
+                # result = parse_block_attributes(e, Path(file).name)
+                # for r in result:
+                #     print(r)
         print('接口解析耗时', time.time() - start_time2,  time.time() - start_time1)

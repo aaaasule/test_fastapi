@@ -1,5 +1,5 @@
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, ConfigDict
+from typing import List, Optional, Dict, Any, Literal
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
 # 所有模型统一使用 camelCase 别名 + snake_case 内部字段
@@ -45,6 +45,7 @@ class EquipmentItem(BaseModelCamel):
     operation: Any  # "add", "update", "delete"
     description: str = None
     is_virtual_eqp: int = 0
+    diff_content: List[str] = Field(default_factory=list)
 
 
 class FidEquipmentItem(BaseModelCamel):
@@ -126,3 +127,57 @@ class ELDCheckResponse(BaseModelCamel):
     error: List[CheckError] = []
     warning: List[CheckError] = []
     data: List[EquipmentItem] = []
+
+
+class WriteFidInterfaceDetail(BaseModelCamel):
+    id: Any
+    parent_id: Optional[Any] = None
+    field_id: Optional[Any] = None
+
+    code: Optional[str] = None
+    uni_code: Optional[str] = None
+    building_id: Optional[Any] = None
+    building_level: Optional[str] = None
+    distribution_box: Optional[Literal[0, 1]] = None
+    con_size: Optional[str] = None
+    con_type: Optional[str] = None
+    max_design_flow: Optional[str] = None
+    in_out_code: Optional[str] = None
+    peak: Optional[str] = None
+    oper: Optional[str] = None
+    ave: Optional[str] = None
+    unit: Optional[str] = None
+
+    cad_block_name: Optional[str] = None
+    cad_block_id: Optional[str] = None
+    layer: Optional[str] = None
+    insert_point_x: Optional[float] = None
+    insert_point_y: Optional[float] = None
+    insert_point_z: Optional[float] = None
+    angle: Optional[float] = None
+    true_color: Optional[int] = None
+
+    is_assigned: Optional[Literal[0, 1, 2, 3]] = None
+    status: Optional[Literal["add", "update", "delete"]] = None
+    locked: Optional[Literal[0, 1]] = None
+    lock_user_id: Optional[str] = None
+    tee_off_flag: Optional[Literal[0, 1]] = None
+    remark: Optional[str] = None
+    is_virtual: Optional[Literal[0, 1]] = None
+
+    equipment_code: Optional[str] = None
+    system_code: Optional[str] = None
+    tee_list: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class WriteFidRequest(BaseModelCamel):
+    interfacesDetailList: List[WriteFidInterfaceDetail] = Field(..., min_length=1)
+    filePath: str = Field(..., min_length=1)
+    local_dxf_path: Optional[str] = None
+
+
+class WriteFidResponse(BaseModelCamel):
+    code: int
+    message: str
+    success: bool
+    data: str = ""

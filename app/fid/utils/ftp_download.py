@@ -1,6 +1,51 @@
-from ftplib import FTP
+from ftplib import FTP, error_perm
 import os
 import traceback
+
+
+def upload_file_to_ftp(
+        host: str,
+        username: str,
+        password: str,
+        port: int,
+        local_file_path: str,
+        remote_path: str,
+):
+    """
+    上传本地文件到 FTP。
+    remote_path: 相对于 FTP 登录后起始目录的路径，使用 posix 分隔符，且无 leading slash，
+        例如 ``fid_with_assignment/foo_20260101120000.dxf``。
+    会自动逐级创建远端目录（若权限允许）。
+    """
+    remote_path = remote_path.replace("\\", "/").strip("/")
+    parts = [p for p in remote_path.split("/") if p]
+    if len(parts) < 2:
+        raise ValueError("remote_path 须至少包含一级目录和文件名，例如 fid_with_assignment/out.dxf")
+
+    *dir_parts, filename = parts
+    ftp = FTP()
+    try:
+        ftp.connect(host, port)
+        ftp.login(username, password)
+        ftp.encoding = "utf-8"
+
+        for d in dir_parts:
+            try:
+                ftp.mkd(d)
+            except error_perm:
+                pass
+            ftp.cwd(d)
+
+        with open(local_file_path, "rb") as f:
+            ftp.storbinary(f"STOR {filename}", f)
+        ftp.quit()
+        return True
+    except Exception:
+        try:
+            ftp.quit()
+        except Exception:
+            pass
+        raise
 
 
 def download_file_from_ftp(

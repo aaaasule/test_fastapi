@@ -1,0 +1,86 @@
+1.	FID回填：
+请求方式：POST
+请求参数（JSON Body）
+{
+	“interfacesDetailList”:[
+		{
+			“id”:1,
+			“parentId”:,							// 父级id，开tee点位才会有
+			“fieldId”:1,							// 所属field id
+			“code”:”01”,							// 编码
+			“uniCode”:””,							// 唯一编码
+			“buildingId”:4,							// 所在建筑
+			“buildingLevel”:”F13”,					// 所在楼层
+			“distributionBox”:0,					// 是否分配箱/配电箱，0否1是
+			“conSize”:”1/2’”,						// 连接尺寸
+			“conType”:””,							// 连接类型
+			“maxDesignFlow”:”1000”,				// 最大设计流量
+			“inOutCode”:”N2”,						// 化学品的io类型
+			“peak”:””,								// 流量峰值
+			“oper”:””,								// 流量运行值
+			“ave”:””,								// 流量平均值
+			“unit”:””,								// 流量单位
+			“cadBlockName”:””,					// cad属性模块名称
+			“cadBlockId”:””,						// cad属性模块id
+			“layer”:””,								// 图层
+			“insertPointX”: ””,						// 插入点坐标X
+			“insertPointY”: ””,						// 插入点坐标Y
+			“insertPointZ”:””,						// 插入点坐标z
+			“angle”:””,							// cad属性块角度
+			“trueColor”:””,							// cad属性块颜色
+			“isAssigned”:2,						//是否已被派点，预派点(0)、预取消(1)、已派点(2)、未派点(3)
+			“status”:“add”,						// 点位状态
+			“locked”:0,							// 是否锁定，0否1是
+			“lockUserId”:”E908112”,					// 锁定点位的用户id
+			“teeOffFlag”:1,						// 开tee标识，1是已开tee
+			“remark”:”这是一个备注”,				// 备注信息
+			“isVirtual”0:,							// 是否虚拟点位，0否1是
+			“equipmentCode”:”BABCB01”,			// 点位关联的设备编码
+			“systemCode”:”PA”,					// 点位关联的系统
+			“teeList”:{								// 开tee点位列表
+				
+}
+},
+…
+]
+	“filePath”:””									// 需要回填的文件地址
+}
+
+返回参数（JSON Body）
+{
+	“code”:200,
+	“message”:””,
+	“success”:true,
+	“data”:””
+}
+文件放在文件夹下/EFMS/fid_with_assignment
+Data中返回一个处理后的文件地址的相对路径
+路径为fid_with_assignment/文件名
+文件名格式为原文件名_时间戳，例如原文件名_20260512092101
+
+2.	SLD校验：
+请求方式：POST
+请求参数（JSON Body）
+{
+	“company”:{},
+	“building”:{},
+	“buildingLevel”:{},
+	“equipmentList”:[],
+	“eldSubEquipmentList”:[],
+	“layerList”:[],
+	“gridList”:[],
+	“fab”:{},
+	“file”:””,
+}
+
+返回参数（JSON Body）
+{
+	“code”:200,
+	“message”:””,
+	“success”:true,
+	“data”:[]
+}
+
+Data中是校验成功列表或者是校验失败数据列表
+校验成功时返回包括diffContent，参数类型为List<String>
+有错误数据时返回校验失败数据列表，返回包括错误信息errors

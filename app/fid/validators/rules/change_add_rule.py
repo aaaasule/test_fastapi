@@ -128,10 +128,12 @@ class EquipmentAddRule(BaseChangeRule):
             else:
 
                 description = ''
-                # 虚拟设备认为是update
+                diff_items = []
+                # 虚拟设备认为是update：上一版虚拟(isVirtualEqp=1) -> 当前实体(0)
                 if virtual_status_dict.get(eq.tool_id) == 1:
                     eq.operation = "update"
-                    description+="和上一版数据相比，虚拟设备新增，展示虚拟设备的TOOL_ID\n"
+                    description += "和上一版数据相比，虚拟设备新增，展示虚拟设备的TOOL_ID\n"
+                    diff_items.append("IS_VIRTUAL_EQP(1,0)")
                     eq.is_virtual_eqp = 0
 
                 # 删除重新加回来
@@ -147,6 +149,7 @@ class EquipmentAddRule(BaseChangeRule):
                         description=description,
                         detail={
                             "TOOL_ID": eq.tool_id,
+                            "diff_items": diff_items,
                             "坐标X": eq.insert_point_x,
                             "坐标Y": eq.insert_point_y
                         },

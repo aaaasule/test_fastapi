@@ -1,6 +1,5 @@
 import json
 import sys
-#from app.fid.utils.check_device import check_which_device
 from pathlib import Path
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent
@@ -22,56 +21,6 @@ import traceback
 from typing import List, Any, Dict
 import re
 
-
-# def check_which_device(equipment: Dict[str, Any], filename: Any):
-#     for _tail in ['PA', 'PD', 'PE', 'PV', 'PP', 'PW']:
-#         if f'FID.{_tail}' in filename:
-#             return 'TAKEOFF'
-
-#     for _tail in ['PC']:
-#         if f'FID.{_tail}' in filename:
-#             return 'VMB_CHEMICAL'  # PC只有chemical  PS只有gasname
-#     for _tail in ['PS']:
-#         if f'FID.{_tail}' in filename:
-#             return 'VMB_GASNAME'
-
-#     for _tail in ['PB']:
-#         if f'FID.{_tail}' in filename:
-#             if 'INTERFACE_CODE' in equipment:
-#                 return 'TAKEOFF'
-#             else:
-#                 return 'VMB_GASNAME'  # PB只有gasname
-
-#     for _tail in ['ES']:
-#         if f'FID.{_tail}' in filename:
-#             if equipment.get('ID_SHORT'):
-#                 # print(f"ID_SHORT-{equipment.get('ID_SHORT')}")
-#                 if 'GPB' in equipment.get('ID_SHORT').upper():
-#                     return 'GPB'
-#                 elif 'LINE' in equipment.get('ID_SHORT').upper():
-#                     return 'I_LINE'
-#                 else:
-#                     return 'NEW_INTER_'
-
-#     if 'INTERFACE_CODE' in equipment:
-#         return 'TAKEOFF'
-#     elif 'VMB-TYPE' in equipment:
-#         if 'CHEMICALNAME' in equipment:
-#             return 'VMB_CHEMICAL'
-#         elif 'GASNAME' in equipment:
-#             return 'VMB_GASNAME'
-
-#     elif equipment.get('ID_SHORT'):
-#         if 'GPB' in equipment.get('ID_SHORT', '').upper():
-#             return 'GPB'
-#         elif 'LINE' in equipment.get('ID_SHORT', '').upper():
-#             return 'I_LINE'
-#         elif equipment.get('ID', '').upper().startswith('BUS'):
-#             return 'NEW_INTER_'
-
-#     return 'I_LINE'
-
-
 def parse_interface_code(code: str) -> dict:
     if not isinstance(code, str):
         code = str(code)
@@ -88,6 +37,15 @@ def parse_interface_code(code: str) -> dict:
         'field': parts[2],
         'id': parts[3]
     }
+
+
+def _sorted_port_suffixes(port_set):
+    """端口后缀排序：数字优先，与必填项等规则展示顺序一致。"""
+    def _key(s):
+        if str(s).isdigit():
+            return (0, int(s), len(str(s)), str(s))
+        return (1, str(s))
+    return sorted(port_set, key=_key)
 
 
 def parse_block_attributes(equipment, filename):
@@ -197,31 +155,78 @@ def parse_block_attributes(equipment, filename):
                     if _k not in all_interface_set:
                         all_interface_set.add(_k)
 
+            # 无 ID.x 时（仅 CT./CS./EQU. 等），仍按端口后缀展开，避免 result 为空退回 final_result 导致聚合结果无关键属性
+            if len(all_interface_set) == 0:
+                _port_prefixes = ('CT', 'CS', 'EQU', 'I/O')
+                for k in equipment:
+                    if '.' not in k:
+                        continue
+                    head, tail = k.split('.', 1)
+                    if head not in _port_prefixes or not tail or '.' in tail:
+                        continue
+                    all_interface_set.add(tail)
+
             #print(f"{all_interface_set=}")
             if len(all_interface_set) == 0:
                 print(f'没有接口，没识别到任何信息:{equipment=}')
 
-            for _id in all_interface_set:
-                IDx = equipment.get(f'ID.{_id}')
+            _port_ids = _sorted_port_suffixes(all_interface_set) if all_interface_set else [None]
+
+            for _id in _port_ids:
+                if _id is None:
+                    IDx = None
+                    cs_dot = equipment.get('CS') or ''
+                    ct_dot = equipment.get('CT') or ''
+                    equ_dot = equipment.get('EQUIPMENT_CODE') or equipment.get('EQU') or ''
+                    io_dot = equipment.get('I/O') or ''
+                    iface_code = equipment.get('ID') or ''
+                    rid_out = ''
+                    x_out = ''
+                    fu = equipment.get('FLOW_UNIT', '')
+                    df = equipment.get('DESIGN_FLOW', '')
+                else:
+                    IDx = equipment.get(f'ID.{_id}')
+                    cs_dot = equipment.get(f'CS.{_id}', '')
+                    ct_dot = equipment.get(f'CT.{_id}', '')
+                    equ_dot = equipment.get(f'EQU.{_id}', '')
+                    io_dot = equipment.get(f'I/O.{_id}')
+                    if io_dot is None or io_dot == '':
+                        io_dot = equipment.get('I/O') or ''
+
+                    iface_code = (
+                        f"{equipment.get('ID') or ''}-{IDx}"
+                        if IDx not in [None, '']
+                        else f"{equipment.get('ID') or ''}-{_id}"
+                    )
+                    rid_out = f"{IDx or ''}" if IDx is not None else f"{_id or ''}"
+                    x_out = _id
+                    fu = equipment.get(f'{_id}.FLOW_UNIT', '')
+                    df = equipment.get(f'{_id}.DESIGN_FLOW', '')
+
                 _result = {
-                    "vmb-type": equipment.get('VMB-TYPE') or equipment.get('GC-TYPE'),
+                    "vmb-type": (
+                        equipment.get('VMB-TYPE')
+                        or equipment.get('GC-TYPE')
+                        or equipment.get('EQP-TYPE')
+                        or equipment.get('EQP.TYPE')
+                    ),
                     "building_level": building_level,
                     "field": field,
                     "system": "PC",
                     "sub_system": sub_system,
                     "field_code": f"{sub_system}.{building_level}.{field}",
                     #"field_code": name,
-                    "interface_code": f"{equipment.get('ID') or ''}-{IDx}" if IDx not in [None, ''] else f"{equipment.get('ID') or ''}-{_id}",
+                    "interface_code": iface_code,
                     "search_id": f"{sub_system};{building_level};{field}",
-                    'id': f"{IDx or ''}" if IDx != None else f"{_id or ''}",
-                    "connection_size": equipment.get(f'CS.{_id}', ''),
-                    "connection_type": equipment.get(f'CT.{_id}', ''),
-                    "equipment_code": equipment.get(f'EQU.{_id}', ''),
-                    "I/O": equipment.get(f'I/O.{_id}'),
-                    'x': _id,
+                    'id': rid_out,
+                    "connection_size": cs_dot,
+                    "connection_type": ct_dot,
+                    "equipment_code": equ_dot,
+                    "I/O": io_dot,
+                    'x': x_out,
                     "IDx": IDx,
-                    "flow_unit": equipment.get(f'{_id}.FLOW_UNIT', ''),
-                    "design_flow": equipment.get(f'{_id}.DESIGN_FLOW', ''),
+                    "flow_unit": fu,
+                    "design_flow": df,
                     "cad_block_name": equipment['CAD_BLOCK_NAME'],
                     "layer": equipment['LAYER'],
                     "insert_point_x": equipment['INSERT_POINT_X'],
@@ -275,6 +280,18 @@ def parse_block_attributes(equipment, filename):
                     _k = k.split('.')[-1]
                     if _k not in all_interface_set:
                         all_interface_set.add(_k)
+            
+
+            # 无 ID.x 时（仅 CT./CS./EQU. 等），仍按端口后缀展开，避免 result 为空退回 final_result 导致聚合结果无关键属性
+            if len(all_interface_set) == 0:
+                _port_prefixes = ('CT', 'CS', 'EQU', 'I/O')
+                for k in equipment:
+                    if '.' not in k:
+                        continue
+                    head, tail = k.split('.', 1)
+                    if head not in _port_prefixes or not tail or '.' in tail:
+                        continue
+                    all_interface_set.add(tail)
 
             # PS、PC and distribution=True 带横杠  interface   sub_system;buildinglevel;
             # field_code: field
@@ -283,21 +300,45 @@ def parse_block_attributes(equipment, filename):
             # interface 拼的是unicode
             # code  interface最后一个 - 或者 ; 后面的
 
-            for _id in all_interface_set:
-                IDx = equipment.get(f'ID.{_id}')
-                # print(f"{IDx=} {_id=}")
+            _port_ids = _sorted_port_suffixes(all_interface_set) if all_interface_set else [None]
+
+            for _id in _port_ids:
+                if _id is None:
+                    IDx = None
+                    cs_dot = equipment.get('CS') or ''
+                    ct_dot = equipment.get('CT') or ''
+                    equ_dot = equipment.get('EQU') or ''
+                    io_dot = equipment.get('I/O') or ''
+                    id_short = equipment.get('ID_SHORT') or ''
+                    interface_code = f"{sub_system};{building_level};{id_short}"
+                    rid_out = (id_short.split(';')[-1] if id_short else '')
+                else:
+                    IDx = equipment.get(f'ID.{_id}')
+                    cs_dot = equipment.get(f'CS.{_id}', '')
+                    ct_dot = equipment.get(f'CT.{_id}', '')
+                    equ_dot = equipment.get(f'EQU.{_id}', '')
+                    io_dot = equipment.get(f'I/O.{_id}')
+                    id_short = equipment.get('ID_SHORT') or ''
+                    interface_code = (
+                        f"{sub_system};{building_level};{id_short};{IDx}"
+                        if IDx not in [None, '']
+                        else f"{sub_system};{building_level};{id_short};{_id}"
+                    )
+                    rid_out = f"{IDx}" if IDx is not None else f"{_id}"
+
                 _result = {
                     "building_level": building_level,
-                    "field": equipment.get('ID_SHORT'),
+                    "field": id_short,
                     "system": "PC",
                     "sub_system": sub_system,
-                    "interface_code": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{IDx}" if IDx not in [None, ''] else f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''};{_id}",
-                    'id': f"{IDx}" if IDx != None else f"{_id}",
-                    "field_code": f"{sub_system}.{building_level}.{equipment.get('ID_SHORT')}",
-                    "search_id": f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''}" if IDx not in [None, ''] else f"{sub_system};{building_level};{equipment.get('ID_SHORT') or ''}",
-                    "connection_size": equipment.get(f'CS.{_id}', ''),
-                    "connection_type": equipment.get(f'CT.{_id}', ''),
-                    "equipment_code": equipment.get(f'EQU.{_id}', ''),
+                    "interface_code": interface_code,
+                    'id': rid_out,
+                    "field_code": f"{sub_system}.{building_level}.{id_short}",
+                    "search_id": id_short,
+                    "connection_size": cs_dot,
+                    "connection_type": ct_dot,
+                    "equipment_code": equ_dot,
+                    "I/O": io_dot if io_dot is not None else '',
                     "cad_block_name": equipment['CAD_BLOCK_NAME'],
                     "layer": equipment['LAYER'],
                     "insert_point_x": equipment['INSERT_POINT_X'],
@@ -306,9 +347,7 @@ def parse_block_attributes(equipment, filename):
                     "angle": equipment['ANGLE'],
                     "true_color": equipment['TRUE_COLOR'],
                     "cad_block_id": equipment['CAD_BLOCK_ID'],
-                    "distribution_box": True,
-                    "x": _id,
-                    "IDx": IDx
+                    "distribution_box": True
                 }
 
                 result.append(_result)

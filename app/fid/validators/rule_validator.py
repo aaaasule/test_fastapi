@@ -90,9 +90,9 @@ class FIDRuleValidator:
 
                 # === 输出结果 ===
                 if not result:
-                    print("✅ 通过 - 未发现异常")
+                    print("[OK] 通过 - 未发现异常")
                 else:
-                    print(f"⚠️  发现 {len(result)} 个问题:")
+                    print(f"[WARN] 发现 {len(result)} 个问题:")
                     print("-" * 80)
                     # for r in result:
                     #     print(r)

@@ -1,0 +1,15 @@
+{
+  "base_url": "http://127.0.0.1:8000",
+  "file": "local:doc/YMTC^SLD^FAB1^F1.dxf",
+  "company": { "id": "1", "code": "YMTC" },
+  "fab": { "id": "1", "code": "FAB1" },
+  "building": { "id": "b1", "code": "FAB1" },
+  "buildingLevel": { "id": "l1", "code": "F1", "buildingId": "b1" },
+  "equipmentList": [],
+  "eldSubEquipmentList": [
+    { "id": "g1", "code": "ESH", "buildingId": "b1" },
+    { "id": "g2", "code": "WET", "buildingId": "b1" }
+  ],
+  "layerList": [{ "code": "100_DBS 5K" }],
+  "gridList": []
+}

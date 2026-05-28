@@ -78,6 +78,8 @@ class UniquenessRule(BaseChangeRule):
                         #description += f"组ID由({eq.group_id})搬到({previous_tool_ids_diff_building[eq.tool_id]['group_id']})\n"
                         description += f"group_id({eq.group_id},{previous_tool_ids_diff_building[eq.tool_id]['group_id']})\n"
 
+                    eq.operation = "update"
+
                     results += [CheckResult(
                         type="warning",
                         name="TOOL_ID不唯一",

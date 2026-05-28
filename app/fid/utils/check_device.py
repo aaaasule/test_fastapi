@@ -1,5 +1,21 @@
-from typing import List, Any, Dict
+from typing import Any, Dict
 import re
+
+
+def has_id_dot_ports(equipment: Dict[str, Any]) -> bool:
+    """图块是否含 ID.xx 端口属性（旧母线/多端口接口）。"""
+    for key in equipment:
+        tag = str(key).upper()
+        if tag.startswith("ID.") and tag != "ID_SHORT" and len(tag) > 3:
+            return True
+    return False
+
+
+def _resolve_bus_block_type(equipment: Dict[str, Any]) -> str:
+    """BUS：有 ID.xx 为旧接口走 I_LINE 多端口；仅 ID 为新接口走 NEW_INTER_。"""
+    if has_id_dot_ports(equipment):
+        return "I_LINE"
+    return "NEW_INTER_"
 
 
 def check_which_device(equipment: Dict[str, Any], filename: Any):
@@ -30,7 +46,7 @@ def check_which_device(equipment: Dict[str, Any], filename: Any):
                 elif 'LINE' in equipment.get('ID_SHORT').upper():
                     return 'I_LINE'
                 elif 'BUS' in equipment.get('ID_SHORT').upper():
-                    return 'NEW_INTER_'
+                    return _resolve_bus_block_type(equipment)
                 else:
                     return 'I_LINE'
 
@@ -48,7 +64,7 @@ def check_which_device(equipment: Dict[str, Any], filename: Any):
         elif 'LINE' in equipment.get('ID_SHORT', '').upper():
             return 'I_LINE'
         elif 'BUS' in equipment.get('ID_SHORT').upper():
-            return 'NEW_INTER_'
+            return _resolve_bus_block_type(equipment)
 
     return 'I_LINE'
     '''

@@ -53,10 +53,36 @@ import pandas as pd
 
 pd.set_option('display.max_rows', None)
 
+
+def _build_diff_content_from_warning(warning_data: CheckResult) -> List[str]:
+    """从规则层构造的 detail.diff_items 生成 diffContent；若不存在则回退解析描述文本。"""
+    detail = warning_data.detail or {}
+    if isinstance(detail, dict):
+        diff_items = detail.get("diff_items")
+        if isinstance(diff_items, list):
+            # 规则层已经给出结构化 diff
+            return [str(item) for item in diff_items if str(item).strip()]
+
+    description = (warning_data.description or "").strip()
+    if not description:
+        return []
+
+    lines = [line.strip() for line in description.splitlines() if line.strip()]
+    if not lines:
+        return []
+
+    diff_items: List[str] = []
+    for line in lines:
+        if "(" in line and line.endswith(")"):
+            diff_items.append(line)
+        else:
+            diff_items.append(line)
+    return diff_items
+
+
 # 导入 FTP 和数据库相关工具
 from app.config import fid_config as config
-
-# from app.config.fid_config import FTP_CONFIG
+#from app.config.fid_config import FTP_CONFIG
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent
@@ -300,7 +326,7 @@ async def _eld_check(
         equipment_pd = pd.DataFrame.from_dict(equipment_list)
 
         final_warning_results = []
-        warning_seen = set()
+        warning_index_map = {}
 
         for warning_data in warnings_results:
             eq = warning_data.equipment
@@ -318,9 +344,19 @@ async def _eld_check(
             _result['building_id'] = building_id
             _result['building_level'] = building_level_code
             _result['description'] = warning_data.description
-            if f"{_result['code']}_{_result['cad_block_id']}" not in warning_seen:
-                warning_seen.add(f"{_result['code']}_{_result['cad_block_id']}")
+            _result['diff_content'] = _build_diff_content_from_warning(warning_data)
+            warning_key = f"{_result['code']}_{_result['cad_block_id']}"
+            if warning_key not in warning_index_map:
+                warning_index_map[warning_key] = len(final_warning_results)
                 final_warning_results.append(_result)
+            else:
+                idx = warning_index_map[warning_key]
+                existing = final_warning_results[idx]
+                existing_diff = existing.get('diff_content') or []
+                for item in _result['diff_content']:
+                    if item not in existing_diff:
+                        existing_diff.append(item)
+                existing['diff_content'] = existing_diff
 
         if len(final_error_results) != 0:
             return_result = {
@@ -380,6 +416,68 @@ def convert_to_check_errors(results: List[CheckResult]) -> List[CheckError]:
     ]
 
 
+_VMB_DEVICE_TYPES = ('VMB_GASNAME', 'VMB_CHEMICAL')
+_SDC_SUBSYSTEM_ERROR = '基于SDC校验Sub_system'
+_SDC_CS_CT_ERROR = '基于SDC校验CS、CT'
+
+
+def _filter_vmb_sdc_errors_for_response(errors, device: str, target: str):
+    """
+    VMB 图块按 CAD_BLOCK_ID 聚合错误时会把 field 级与 interface 级混在一起。
+    field 只保留 subsystem 相关 SDC 错误；interface 只保留 CS/CT 相关 SDC 错误。
+    """
+    if not errors or device not in _VMB_DEVICE_TYPES:
+        return errors
+    if target == 'field':
+        return [e for e in errors if e.get('errorName') != _SDC_CS_CT_ERROR]
+    if target == 'interface':
+        return [e for e in errors if e.get('errorName') != _SDC_SUBSYSTEM_ERROR]
+    return errors
+
+
+def _equipment_code_for_response(*sources) -> str | None:
+    """
+    从 parse_block_attributes 大写化结果或图块属性中取设备编码。
+    对应 parse_block_attributes 的 equipment_code（DXF: EQUIPMENT_CODE / EQU / EQU.x）。
+    """
+    for src in sources:
+        if not src or not isinstance(src, dict):
+            continue
+        val = src.get('EQUIPMENT_CODE')
+        if val is None:
+            val = src.get('EQU')
+        if val is not None and str(val).strip() != '':
+            return str(val).strip()
+    return None
+
+
+def _warning_has_io_attribute_change(result) -> bool:
+    """判断 warning 是否包含 I/O 图块属性修改。"""
+    detail = result.detail or ''
+    description = result.description or ''
+    return 'I/O 修改' in detail or 'I/O(' in description
+
+
+def _warning_cad_in_out_code(result) -> str | None:
+    """
+    I/O 属性修改 warning：回写图块解析出的 I/O（变更后值）。
+    非 I/O 相关 warning 返回 None，由调用方决定是否写入 inOutCode。
+    """
+    if not _warning_has_io_attribute_change(result):
+        return None
+    if not result.equipment or len(result.equipment) < 2:
+        return ''
+    last = result.equipment[-1]
+    if not isinstance(last, dict):
+        return ''
+    for key, value in last.items():
+        if str(key).upper() == 'I/O':
+            if value is None:
+                return ''
+            return str(value).strip()
+    return ''
+
+
 async def _fid_check(
         file_path,
         company,
@@ -412,7 +510,7 @@ async def _fid_check(
         fab = {'id': fab['id'], 'name': fab['name']}
         building = {'id': building['id'], 'name': building['name']}
         building_level = {'id': building_level['id'], 'name': building_level['name']}
-        system = {'id': system['id'], 'name': system['code']}
+        system = {'id': system['id'], 'name': system['code'], 'code': system['code']}
 
         # 列表转换
         subsystem_list = [convert_dict_keys_to_snake(sl) for sl in subsystem_list]
@@ -529,6 +627,7 @@ async def _fid_check(
             _id = eq.get("CAD_BLOCK_ID")
             if _id not in equipment_error_map:
                 equipment_error_map[_id] = []
+
         # 填充 map
         for result in all_results:
             if not result.equipment or len(result.equipment) == 0:
@@ -547,6 +646,7 @@ async def _fid_check(
                     existing_names = [eem_dict['errorName'] for eem_dict in equipment_error_map[cad_block_id]]
                     if error_dict['errorName'] not in existing_names:
                         equipment_error_map[cad_block_id].append(error_dict)
+
         final_error_results = []
         for eq in errors_results:
             equipment = eq.equipment[0]
@@ -554,6 +654,7 @@ async def _fid_check(
             if _id in equipment_error_map and len(equipment_error_map[_id]) > 0:
                 eq.errors = equipment_error_map[_id]
                 final_error_results.append(eq)
+
         final_warning_results = []
         # 这里原本有去重逻辑被注释掉了，保持原样直接 append
         for warning_data in warnings_results:
@@ -573,6 +674,7 @@ async def _fid_check(
                 equipment = result.equipment[0]
                 equipments = parse_block_attributes(equipment, filename)
                 equipments = [{k.upper(): v for _equipment in equipments for k, v in _equipment.items()}]
+
                 field_code = equipments[0].get('FIELD')
                 # 注意：这里的 iloc 查询在循环中非常慢，如果数据量大，这里是主要瓶颈
                 result_pd = field_pd[field_pd['FIELD.code'] == field_code]
@@ -590,7 +692,6 @@ async def _fid_check(
                         field_id = None
 
                 if len(result.equipment) > 1:
-
                     result.equipment[0] = {k.upper(): v for k, v in result.equipment[0].items()}
                     result.equipment[1] = {k.upper(): v for k, v in result.equipment[1].items()}
 
@@ -616,7 +717,7 @@ async def _fid_check(
                         'is_Assigned': None,
                         'chemicalName': result.equipment[-1].get('CHEMICAL_NAME') or result.equipment[-1].get(
                             'GAS_NAME'),
-                        'isOutCode': None,
+                        'inOutCode': result.equipment[-1].get('I/O','') or '',
                         'locked': result.equipment[-1].get('locked'),
                         'layer': result.equipment[-1].get('LAYER'),
                         'insertPointX': result.equipment[-1].get('INSERT_POINT_X'),
@@ -627,11 +728,15 @@ async def _fid_check(
                         'cadBlockId': result.equipment[-1].get('CAD_BLOCK_ID'),
                         'cadBlockName': result.equipment[-1].get('CAD_BLOCK_NAME'),
                         'distributionBox': result.equipment[-1].get('DISTRIBUTION_BOX'),
-                        'errors': result.errors
+                        'equipmentCode': _equipment_code_for_response(
+                            result.equipment[-1],
+                            equipments[0] if equipments else None,
+                        ),
+                        'errors': _filter_vmb_sdc_errors_for_response(
+                            result.errors, result.device, 'interface')
                     }
                     if not check_result_valid(_data):
                         raise Exception('check result is not valid')
-
 
                     key = f"{_data['uniCode']}-{_data['cadBlockId']}"
                     if key not in interface_record:
@@ -689,7 +794,7 @@ async def _fid_check(
                             'unit': _equipment.get('FLOW_UNIT'),
                             'is_Assigned': None,
                             'chemicalName': _equipment.get('CHEMICAL_NAME') or _equipment.get('GAS_NAME'),
-                            'isOutCode': None,
+                            'inOutCode': result.equipment[-1].get('I/O','') or '',
                             'locked': _equipment.get('locked'),
                             'layer': _equipment.get('LAYER'),
                             'insertPointX': _equipment.get('INSERT_POINT_X'),
@@ -700,7 +805,9 @@ async def _fid_check(
                             'cadBlockId': _equipment.get('CAD_BLOCK_ID'),
                             'cadBlockName': _equipment.get('CAD_BLOCK_NAME'),
                             'distributionBox': _equipment.get('DISTRIBUTION_BOX'),
-                            'errors': result.errors
+                            'equipmentCode': _equipment_code_for_response(_equipment),
+                            'errors': _filter_vmb_sdc_errors_for_response(
+                                result.errors, result.device, 'interface')
                         }
                         key = f"{_data['uniCode']}-{_data['cadBlockId']}"
                         if key not in interface_record:
@@ -726,7 +833,7 @@ async def _fid_check(
                         'unit': _equipment.get('FLOW_UNIT') if result.operation != 'delete' else result.equipment[
                             0].get('UNIT'),
                         'is_Assigned': None,
-                        'isOutCode': None,
+                        'inOutCode': None,
                         'locked': _equipment.get('locked') or result.equipment[0].get('LOCKED'),
                         'vmb_type': _equipment.get('VMB-TYPE') or result.equipment[0].get('VMB_TYPE'),
                         'layer': _equipment.get('LAYER') or result.equipment[0].get('LAYER'),
@@ -738,9 +845,9 @@ async def _fid_check(
                         'cadBlockId': _equipment.get('CAD_BLOCK_ID'),
                         'cadBlockName': _equipment.get('CAD_BLOCK_NAME'),
                         'distributionBox': _equipment.get('DISTRIBUTION_BOX'),
-                        'errors': result.errors,
-                        'idx': result.equipment[0].get('idx') if result.equipment[0].get(
-                            'idx') else ''
+                        'equipmentCode': _equipment_code_for_response(_equipment),
+                        'errors': _filter_vmb_sdc_errors_for_response(
+                            result.errors, result.device, 'field')
                     }
 
                     key = f"{field_data['uniCode']}-{field_data['cadBlockId']}"
@@ -751,7 +858,7 @@ async def _fid_check(
 
             final_results = replace_nan_with_none(final_results)
 
-            # 打个补丁， 将 append 到 field 中的 'ID.X唯一性错误' 错误类型 换到 interface
+
             # 处理 'ID.X唯一性错误' 类型错误，将field中的 'ID.X唯一性错误' 类型错误，添加到 interface 中
             for field_item in final_results['field']:
                 idx_errors = [e for e in (field_item.get('errors') or []) if e.get('errorName') == 'ID.X唯一性错误']
@@ -765,7 +872,6 @@ async def _fid_check(
                         interface_item['errors'].extend(idx_errors)
                         matched = True
                 if not matched:
-
                     new_interface = {
                         'id': None,
                         'parent_id': '',
@@ -773,20 +879,17 @@ async def _fid_check(
                         'fab_id': field_item.get('fab_id'),
                         'building_id': field_item.get('building_id'),
                         'building_level': field_item.get('building_level'),
-                        'uniCode': field_item.get('searchId') + field_item.get('idx') if (
-                                '.' in str(field_item.get('uniCode') or '')) else field_item.get(
-                            'uniCode') + field_item.get('idx'),
+                        'uniCode': field_item.get('searchId') if ('.' in str(field_item.get('uniCode') or '')) else field_item.get('uniCode'),
                         'code': field_item.get('code'),
-                        'field_code': field_item.get('uniCode'),
-                        'searchId': field_item.get('searchId') if field_item.get('cadBlockName').startswith('VMB') else
-                        field_item.get('searchId').split(';')[2],
+                        'field_code': field_item.get('field_code') if ('.' in str(field_item.get('uniCode') or '')) else '',
+                        'searchId': field_item.get('searchId'),
                         'conSize': field_item.get('conSize'),
                         'conType': field_item.get('conType'),
                         'maxDesignFlow': field_item.get('maxDesignFlow'),
                         'unit': field_item.get('unit'),
                         'is_Assigned': None,
                         'chemicalName': field_item.get('chemicalName'),
-                        'isOutCode': None,
+                        'inOutCode': result.equipment[-1].get('I/O','') or '',
                         'locked': field_item.get('locked'),
                         'layer': field_item.get('layer'),
                         'insertPointX': field_item.get('insertPointX'),
@@ -797,11 +900,11 @@ async def _fid_check(
                         'cadBlockId': field_item.get('cadBlockId'),
                         'cadBlockName': field_item.get('cadBlockName'),
                         'distributionBox': field_item.get('distributionBox'),
+                        'equipmentCode': field_item.get('equipmentCode'),
                         'errors': idx_errors
                     }
                     final_results['interfaces'].append(new_interface)
-                field_item['errors'] = [e for e in (field_item.get('errors') or []) if
-                                        e.get('errorName') != 'ID.X唯一性错误']
+                field_item['errors'] = [e for e in (field_item.get('errors') or []) if e.get('errorName') != 'ID.X唯一性错误']
 
             # 处理 '必填项未填写: {field}' 类型错误，将field中的 '必填项未填写: {field}' 类型错误，添加到 interface 中
             _interface_field_prefixes = ('ID.', 'CS.', 'CT.')
@@ -811,7 +914,7 @@ async def _fid_check(
                 interface_required_errors = [
                     e for e in all_errors
                     if e.get('errorName') == '必填项缺失'
-                       and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
+                    and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
                 ]
                 if not interface_required_errors:
                     continue
@@ -833,9 +936,9 @@ async def _fid_check(
                         'fab_id': field_item.get('fab_id'),
                         'building_id': field_item.get('building_id'),
                         'building_level': field_item.get('building_level'),
-                        'uniCode': field_item.get('searchId'),
+                        'uniCode': field_item.get('searchId') if ('.' in str(field_item.get('uniCode') or '')) else field_item.get('uniCode'),
                         'code': field_item.get('code'),
-                        'field_code': field_item.get('uniCode'),
+                        'field_code': field_item.get('field_code') if ('.' in str(field_item.get('uniCode') or '')) else '',
                         'searchId': field_item.get('searchId'),
                         'conSize': field_item.get('conSize'),
                         'conType': field_item.get('conType'),
@@ -843,7 +946,7 @@ async def _fid_check(
                         'unit': field_item.get('unit'),
                         'is_Assigned': None,
                         'chemicalName': field_item.get('chemicalName'),
-                        'isOutCode': None,
+                        'inOutCode': result.equipment[-1].get('I/O','') or '',
                         'locked': field_item.get('locked'),
                         'layer': field_item.get('layer'),
                         'insertPointX': field_item.get('insertPointX'),
@@ -854,6 +957,7 @@ async def _fid_check(
                         'cadBlockId': field_item.get('cadBlockId'),
                         'cadBlockName': field_item.get('cadBlockName'),
                         'distributionBox': field_item.get('distributionBox'),
+                        'equipmentCode': field_item.get('equipmentCode'),
                         'errors': interface_required_errors
                     }
                     final_results['interfaces'].append(new_interface)
@@ -864,27 +968,14 @@ async def _fid_check(
                     field_item['errors'] = [
                         e for e in all_errors
                         if not (
-                                e.get('errorName') == '必填项缺失'
-                                and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
+                            e.get('errorName') == '必填项缺失'
+                            and any(prefix in e.get('errorDescription', '') for prefix in _interface_field_prefixes)
                         )
                     ]
             for _f in fields_to_remove:
                 final_results['field'].remove(_f)
 
-            # 对 final_results 中 interface级别的errors进行去重
-            for interface in final_results['interfaces']:
-                errors = interface.get('errors')
-                if not errors:
-                    continue
-                seen = set()
-                unique_errors = []
 
-                for err in errors:
-                    err_str = json.dumps(err, sort_keys=True, ensure_ascii=False)
-                    if err_str not in seen:
-                        seen.add(err_str)
-                        unique_errors.append(err)
-                interface['errors'] = unique_errors
 
             return_result = {
                 'code': 200,
@@ -964,6 +1055,8 @@ async def _fid_check(
 
                     search_id = search_id.replace('.', ';') if search_id else ''
 
+                    cad_in_out_code = _warning_cad_in_out_code(result)
+
                     _data = {
                         'id': interface_id if interface_id != 'None' else int(
                             interface_id) if interface_id is not None else None,
@@ -985,7 +1078,7 @@ async def _fid_check(
                         'is_Assigned': None,
                         'chemicalName': result.equipment[-1].get('CHEMICAL_NAME') or result.equipment[-1].get(
                             'GAS_NAME'),
-                        'isOutCode': None,
+                        'inOutCode': cad_in_out_code if cad_in_out_code is not None else None,
                         'locked': result.equipment[-1].get('locked'),
                         'layer': result.equipment[-1].get('LAYER'),
                         'insertPointX': result.equipment[-1].get('INSERT_POINT_X'),
@@ -996,6 +1089,10 @@ async def _fid_check(
                         'cadBlockId': result.equipment[-1].get('CAD_BLOCK_ID'),
                         'cadBlockName': result.equipment[-1].get('CAD_BLOCK_NAME'),
                         'distributionBox': result.equipment[-1].get('DISTRIBUTION_BOX'),
+                        'equipmentCode': _equipment_code_for_response(
+                            result.equipment[-1],
+                            equipment,
+                        ),
                         'operation': result.operation,
                         'detail': result.detail
                     }
@@ -1040,7 +1137,7 @@ async def _fid_check(
                         'unit': equipment.get('FLOW_UNIT') if result.operation != 'delete' else result.equipment[0].get(
                             'UNIT'),
                         'is_Assigned': None,
-                        'isOutCode': None,
+                        'inOutCode': None,
                         'locked': equipment.get('locked') if result.operation != 'delete' else result.equipment[0].get(
                             'LOCKED'),
                         'vmb_type': equipment.get('VMB-TYPE') if result.operation != 'delete' else result.equipment[
@@ -1063,6 +1160,7 @@ async def _fid_check(
                         result.equipment[0].get('CAD_BLOCK_NAME'),
                         'distributionBox': equipment.get('DISTRIBUTION_BOX') if result.operation != 'delete' else
                         result.equipment[0].get('DISTRIBUTION_BOX'),
+                        'equipmentCode': _equipment_code_for_response(equipment),
                         'operation': result.operation,
                         'detail': result.detail
                     }
