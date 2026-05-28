@@ -1,1 +1,0 @@
-SyntaxError: Non-UTF-8 code starting with '\xa9' in file V:\Desktop\efms_python_validator\app\fid\eld_dxf_to_excel.py on line 14, but no encoding declared; see https://python.org/dev/peps/pep-0263/ for details
