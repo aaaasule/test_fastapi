@@ -34,7 +34,7 @@ def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[
     msp = doc.modelspace()
     equipments: List[Equipment] = []
 
-    owerlist = []
+    owerlist= []
     for entity in msp:
 
         # 只处理 INSERT（块引用）
@@ -51,7 +51,7 @@ def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[
             continue
 
         block = doc.blocks[block_name]
-        # print(f"{block_name=}")
+        #print(f"{block_name=}")
 
         try:
             # 获取块的包围盒（考虑旋转、缩放）
@@ -81,12 +81,11 @@ def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[
             continue
         else:
             # tool_id 删除开头的^
-            attrs['TOOL_ID'] = attrs['TOOL_ID'][1:].strip() if attrs['TOOL_ID'] and attrs['TOOL_ID'].startswith(
-                '^') else attrs['TOOL_ID'].strip()
+            attrs['TOOL_ID'] = attrs['TOOL_ID'][1:].strip() if attrs['TOOL_ID'] and attrs['TOOL_ID'].startswith('^') else attrs['TOOL_ID'].strip()
 
         # if attrs.get("TOOL_ID", None) not in ['OPC', 'AOLUS03']:
         #     continue
-        # print(attrs)
+        #print(attrs)
         # continue
         # if attrs.get("OWNER", None) not in owerlist:
         #     owerlist.append(attrs.get("OWNER", None))
@@ -95,7 +94,7 @@ def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[
         # 构建 Equipment 对象
         owner_code = (attrs.get("OWNER", '') or attrs.get("EQU.GROUP", '')).upper()
         group_id = file_info.owner2id.get(owner_code) if file_info is not None and owner_code != '' else None
-        # print(f"{owner_code=} {group_id=}")
+        #print(f"{owner_code=} {group_id=}")
         eq = Equipment(
             id=file_info.id_ if file_info != None else None,
             fab_id=file_info.fab_id if file_info != None else None,
@@ -125,7 +124,7 @@ def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[
         if eq.group_id is None:
             print(f"file_info is None -> {file_info is None}")
             print(f"{attrs.get('OWNER')=} {owner_code=}")
-            # print(json.dumps(file_info.owner2id, ensure_ascii=False, indent=2))
+            #print(json.dumps(file_info.owner2id, ensure_ascii=False, indent=2))
 
         equipments.append(eq)
     print(f"共解析出 {len(equipments)} 节点")
@@ -134,4 +133,6 @@ def parse_dxf(dxf_path, file_info: FileInfo = None, target_layers=None) -> List[
 
 
 if __name__ == '__main__':
-    parse_dxf("v:/Desktop/eld_check/YMTC^ELD^FAB1^F3.dxf")
+    pass
+
+
