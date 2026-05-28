@@ -1,2 +1,15 @@
 __pycache__/
 *.py[cod]
+
+venv/
+
+.env    
+
+tests/
+
+scripts/
+
+docs/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/ 
