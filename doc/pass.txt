@@ -1,0 +1,105 @@
+    "company": {
+        "archive": 0,
+        "createTime": "2025-12-28 18:00:00",
+        "creatorId": "1",
+        "id": 1,
+        "lastModifierId": "1",
+        "lastModifyTime": "2025-12-28 18:00:00",
+        "name": "长江存储",
+        "nameEn": "YMTC",
+        "shortName": "长江存储"
+    },
+    "fab": {
+        "archive": 0,
+        "companyId": 1,
+        "createTime": "2025-12-28 18:00:00",
+        "creatorId": "1",
+        "dsName": "ymtc-fab1",
+        "id": 1,
+        "lastModifierId": "1",
+        "lastModifyTime": "2025-12-28 18:00:00",
+        "name": "Fab1",
+        "schemaName": "efms_fab1"
+    },
+    "building": {
+        "archive": 0,
+        "code": "FAB1",
+        "companyId": 1,
+        "createTime": "2026-03-18 15:36:19",
+        "creatorId": "E908112",
+        "fabId": 1,
+        "id": 1,
+        "lastModifierId": "E908112",
+        "lastModifyTime": "2026-03-18 15:36:19",
+        "name": "FAB1",
+        "shortName": "FAB1"
+    },
+    "buildingLevel": {
+        "archive": 0,
+        "buildingId": 1,
+        "code": "F2",
+        "createTime": "2026-03-18 15:42:37",
+        "creatorId": "E908112",
+        "id": 2,
+        "lastModifierId": "E908112",
+        "lastModifyTime": "2026-03-18 15:42:37",
+        "levelOrder": 2,
+        "name": "F2",
+        "shortName": "F2"
+    },
+    "system": {
+        "archive": 0,
+        "code": "ES",
+        "createTime": "2026-02-27T06:35:38.492Z",
+        "description": "Electric Power",
+        "fabId": 1,
+        "id": 11
+    },
+    "subsystemList": [
+        {
+            "code": "IC-ES",
+            "id": 1,
+            "isSlurry": 0
+        },
+        {
+            "code": "N120V-1P",
+            "id": 2,
+            "isSlurry": 0
+        }],
+        "fieldList": [
+        {
+            "angle": "180.0",
+            "buildingId": 1,
+            "buildingLevel": "F2",
+            "cadBlockId": "6AC6",
+            "cadBlockName": "*U3",
+            "code": "F11-2-2GPB-N4-15",
+            "distributionBox": "1",
+            "id": 27480,
+            "insertPointX": "246299.9989",
+            "insertPointY": "169538.0",
+            "insertPointZ": "0.0",
+            "layer": "GPB-1200A",
+            "locked": 0,
+            "status": "add",
+            "subsystemId": 14,
+            "systemId": 11,
+            "trueColor": "4",
+            "uniCode": "N480V-3P.FAB1F2.F11-2-2GPB-N4-15"
+        }],
+    "interfaceList": [
+        {
+            "buildingId": 1,
+            "buildingLevel": "F2",
+            "distributionBox": "1",
+            "fieldId": 27480,
+            "id": 124617,
+            "insertPointX": "246299.9989",
+            "insertPointY": "169538.0",
+            "insertPointZ": "0.0",
+            "isVirtual": 0,
+            "locked": 0,
+            "status": "add",
+            "teeOffFlag": 0,
+            "uniCode": "N480V-3P;FAB1F2;F11-2-2GPB-N4-15;72"
+        },
