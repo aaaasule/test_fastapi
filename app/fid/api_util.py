@@ -452,6 +452,43 @@ def _equipment_code_for_response(*sources) -> str | None:
     return None
 
 
+def _normalize_is_assigned_value(value):
+    if value is None:
+        return None
+    if isinstance(value, float) and pd.isna(value):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return value
+
+
+def _build_interface_is_assigned_lookup(interface_list: list) -> dict:
+    lookup = {}
+    for item in interface_list:
+        uni_code = item.get('uni_code')
+        if uni_code is None:
+            continue
+        assigned = _normalize_is_assigned_value(item.get('is_assigned'))
+        if assigned is not None:
+            lookup[str(uni_code)] = assigned
+    return lookup
+
+
+def _is_assigned_for_response(uni_code, interface_is_assigned_lookup: dict, interface_pd_slice=None):
+    """从入参 interfaceList 按 uniCode 取 isAssigned。"""
+    if interface_pd_slice is not None and not interface_pd_slice.empty:
+        col = 'INTERFACE.is_assigned'
+        if col in interface_pd_slice.columns:
+            assigned = _normalize_is_assigned_value(interface_pd_slice.iloc[0][col])
+            if assigned is not None:
+                return assigned
+
+    if uni_code is None:
+        return None
+    return interface_is_assigned_lookup.get(str(uni_code))
+
+
 def _warning_has_io_attribute_change(result) -> bool:
     """判断 warning 是否包含 I/O 图块属性修改。"""
     detail = result.detail or ''
@@ -535,6 +572,7 @@ async def _fid_check(
         field_list = [convert_dict_keys_to_snake(fl) for fl in field_list]
         interface_list = [convert_dict_keys_to_snake(il) for il in interface_list]
         system_interface_list = [convert_dict_keys_to_snake(sil) for sil in system_interface_list]
+        interface_is_assigned_lookup = _build_interface_is_assigned_lookup(interface_list)
 
         # --- 阶段 2: DataFrame 构建 ---
         field_pd = pd.DataFrame.from_dict(field_list).add_prefix('FIELD.')
@@ -715,7 +753,11 @@ async def _fid_check(
                         'conType': result.equipment[-1].get('CONNECTION_TYPE'),
                         'maxDesignFlow': result.equipment[-1].get('DESIGN_FLOW'),
                         'unit': result.equipment[-1].get('FLOW_UNIT'),
-                        'is_Assigned': None,
+                        'isAssigned': _is_assigned_for_response(
+                            result.equipment[-1].get('INTERFACE_CODE'),
+                            interface_is_assigned_lookup,
+                            _interface_pd,
+                        ),
                         'chemicalName': result.equipment[-1].get('CHEMICAL_NAME') or result.equipment[-1].get(
                             'GAS_NAME'),
                         'inOutCode': result.equipment[-1].get('I/O','') or '',
@@ -793,7 +835,11 @@ async def _fid_check(
                             'conType': _equipment.get('CONNECTION_TYPE'),
                             'maxDesignFlow': _equipment.get('DESIGN_FLOW'),
                             'unit': _equipment.get('FLOW_UNIT'),
-                            'is_Assigned': None,
+                            'isAssigned': _is_assigned_for_response(
+                                _equipment.get('INTERFACE_CODE'),
+                                interface_is_assigned_lookup,
+                                _interface_pd,
+                            ),
                             'chemicalName': _equipment.get('CHEMICAL_NAME') or _equipment.get('GAS_NAME'),
                             'inOutCode': result.equipment[-1].get('I/O','') or '',
                             'locked': _equipment.get('locked'),
@@ -833,7 +879,6 @@ async def _fid_check(
                         'maxDesignFlow': _equipment.get('DESIGN_FLOW') or result.equipment[0].get('POS_MAX_FLOW'),
                         'unit': _equipment.get('FLOW_UNIT') if result.operation != 'delete' else result.equipment[
                             0].get('UNIT'),
-                        'is_Assigned': None,
                         'inOutCode': None,
                         'locked': _equipment.get('locked') or result.equipment[0].get('LOCKED'),
                         'vmb_type': _equipment.get('VMB-TYPE') or result.equipment[0].get('VMB_TYPE'),
@@ -873,6 +918,7 @@ async def _fid_check(
                         interface_item['errors'].extend(idx_errors)
                         matched = True
                 if not matched:
+                    new_interface_uni_code = field_item.get('searchId') if ('.' in str(field_item.get('uniCode') or '')) else field_item.get('uniCode')
                     new_interface = {
                         'id': None,
                         'parent_id': '',
@@ -880,7 +926,7 @@ async def _fid_check(
                         'fab_id': field_item.get('fab_id'),
                         'building_id': field_item.get('building_id'),
                         'building_level': field_item.get('building_level'),
-                        'uniCode': field_item.get('searchId') if ('.' in str(field_item.get('uniCode') or '')) else field_item.get('uniCode'),
+                        'uniCode': new_interface_uni_code,
                         'code': field_item.get('code'),
                         'field_code': field_item.get('field_code') if ('.' in str(field_item.get('uniCode') or '')) else '',
                         'searchId': field_item.get('searchId'),
@@ -888,7 +934,10 @@ async def _fid_check(
                         'conType': field_item.get('conType'),
                         'maxDesignFlow': field_item.get('maxDesignFlow'),
                         'unit': field_item.get('unit'),
-                        'is_Assigned': None,
+                        'isAssigned': _is_assigned_for_response(
+                            new_interface_uni_code,
+                            interface_is_assigned_lookup,
+                        ),
                         'chemicalName': field_item.get('chemicalName'),
                         'inOutCode': result.equipment[-1].get('I/O','') or '',
                         'locked': field_item.get('locked'),
@@ -930,6 +979,7 @@ async def _fid_check(
                         interface_item['errors'].extend(interface_required_errors)
                         matched = True
                 if not matched:
+                    new_interface_uni_code = field_item.get('searchId') if ('.' in str(field_item.get('uniCode') or '')) else field_item.get('uniCode')
                     new_interface = {
                         'id': None,
                         'parent_id': '',
@@ -937,7 +987,7 @@ async def _fid_check(
                         'fab_id': field_item.get('fab_id'),
                         'building_id': field_item.get('building_id'),
                         'building_level': field_item.get('building_level'),
-                        'uniCode': field_item.get('searchId') if ('.' in str(field_item.get('uniCode') or '')) else field_item.get('uniCode'),
+                        'uniCode': new_interface_uni_code,
                         'code': field_item.get('code'),
                         'field_code': field_item.get('field_code') if ('.' in str(field_item.get('uniCode') or '')) else '',
                         'searchId': field_item.get('searchId'),
@@ -945,7 +995,10 @@ async def _fid_check(
                         'conType': field_item.get('conType'),
                         'maxDesignFlow': field_item.get('maxDesignFlow'),
                         'unit': field_item.get('unit'),
-                        'is_Assigned': None,
+                        'isAssigned': _is_assigned_for_response(
+                            new_interface_uni_code,
+                            interface_is_assigned_lookup,
+                        ),
                         'chemicalName': field_item.get('chemicalName'),
                         'inOutCode': result.equipment[-1].get('I/O','') or '',
                         'locked': field_item.get('locked'),
@@ -1057,6 +1110,7 @@ async def _fid_check(
                     search_id = search_id.replace('.', ';') if search_id else ''
 
                     cad_in_out_code = _warning_cad_in_out_code(result)
+                    warning_interface_uni_code = result.equipment[-1].get('INTERFACE_CODE') if result.operation != 'delete' else result.equipment[-1].get('UNI_CODE')
 
                     _data = {
                         'id': interface_id if interface_id != 'None' else int(
@@ -1066,8 +1120,7 @@ async def _fid_check(
                         'fab_id': fab['id'],
                         'building_id': building['id'],
                         'building_level': building_level['name'],
-                        'uniCode': result.equipment[-1].get('INTERFACE_CODE') if result.operation != 'delete' else
-                        result.equipment[-1].get('UNI_CODE'),
+                        'uniCode': warning_interface_uni_code,
                         'code': result.equipment[-1].get('id'),
                         'field_code': f"{result.equipment[-1].get('SUB_SYSTEM') or ''}.{result.equipment[-1].get('BUILDING_LEVEL') or ''}.{result.equipment[-1].get('FIELD') or ''}" \
                             if result.operation != 'delete' else (result.equipment[0].get('UNI_CODE') or ''),
@@ -1076,7 +1129,11 @@ async def _fid_check(
                         'conType': result.equipment[-1].get('CONNECTION_TYPE'),
                         'maxDesignFlow': result.equipment[-1].get('DESIGN_FLOW'),
                         'unit': result.equipment[-1].get('FLOW_UNIT'),
-                        'is_Assigned': None,
+                        'isAssigned': _is_assigned_for_response(
+                            warning_interface_uni_code,
+                            interface_is_assigned_lookup,
+                            _interface_pd,
+                        ),
                         'chemicalName': result.equipment[-1].get('CHEMICAL_NAME') or result.equipment[-1].get(
                             'GAS_NAME'),
                         'inOutCode': cad_in_out_code if cad_in_out_code is not None else None,
@@ -1138,7 +1195,6 @@ async def _fid_check(
                         result.equipment[0].get('POS_MAX_FLOW'),
                         'unit': equipment.get('FLOW_UNIT') if result.operation != 'delete' else result.equipment[0].get(
                             'UNIT'),
-                        'is_Assigned': None,
                         'inOutCode': None,
                         'locked': equipment.get('locked') if result.operation != 'delete' else result.equipment[0].get(
                             'LOCKED'),
