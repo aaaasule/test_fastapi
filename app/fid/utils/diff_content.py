@@ -9,6 +9,17 @@ def format_diff_item(attr: str, old_value: Any, new_value: Any) -> str:
     return f"{attr}（{old_value}，{new_value}）"
 
 
+NOT_EXISTING_RESTORE_DIFF_ITEM = "status(not_existing_in_fid,update)"
+
+
+def build_not_existing_restore_detail(summary: str) -> dict:
+    """图面重新出现、但后端曾标记 not_existing_in_fid 时的 diff 详情。"""
+    return {
+        "summary": summary,
+        "diff_items": [NOT_EXISTING_RESTORE_DIFF_ITEM],
+    }
+
+
 def normalize_diff_item(item: str) -> str:
     text = (item or "").strip()
     if not text:

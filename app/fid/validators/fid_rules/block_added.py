@@ -11,6 +11,7 @@ from app.fid.validators.base_rules import BaseRule
 from app.fid.models import  CheckResult
 
 from app.fid.utils.parse_block_attributes import parse_block_attributes
+from app.fid.utils.diff_content import build_not_existing_restore_detail
 
 import pandas as pd
 pd.set_option('display.max_columns', None)
@@ -127,7 +128,7 @@ class BlockAddCheck(BaseRule):
                             type=self.rule_type,
                             name="图块新增",
                             description=description,
-                            detail=description,
+                            detail=build_not_existing_restore_detail(description),
                             equipment=[eq],
                             operation='update',
                             field_or_interface='field',

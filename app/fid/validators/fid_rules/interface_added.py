@@ -10,6 +10,7 @@ if str(project_root) not in sys.path:
 from app.fid.validators.base_rules import BaseRule
 from app.fid.models import CheckResult
 from app.fid.utils.parse_block_attributes import parse_block_attributes
+from app.fid.utils.diff_content import build_not_existing_restore_detail
 import pandas as pd
 
 # 全局设置一次即可，不需要在每个类或方法中重复设置
@@ -145,11 +146,12 @@ class InterfaceAddCheck(BaseRule):
                         # 可选：如果需要实时更新 history 防止同一文件内重复报告（视业务需求）
 
                     else:
+                        restore_desc = f"{description} ID({interface_code}) 增加"
                         results.append(CheckResult(
                             type=self.rule_type,
                             name="新增 interface",
-                            description=f"{description} ID({interface_code}) 增加",
-                            detail=f"{description} ID({interface_code}) 增加",
+                            description=restore_desc,
+                            detail=build_not_existing_restore_detail(restore_desc),
                             operation='update',
                             equipment=[eq, info],  # 注意：这里保留了引用，如果数据量极大，考虑只存 ID
                             device=device
