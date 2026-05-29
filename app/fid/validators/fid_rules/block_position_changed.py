@@ -101,7 +101,6 @@ class BlockPositionCheck(BaseRule):
             if not equipments_info:
                 continue
 
-            description = ""
             for info in equipments_info:
 
                 uni_code = info.get('interface_code')
@@ -135,16 +134,23 @@ class BlockPositionCheck(BaseRule):
                 dy = abs(old_y - new_y)
                 dz = abs(old_z - new_z)
 
-                # 判断是否超过阈值
-                #if dx >= threshold or dy >= threshold or dz >= threshold:
+                info_diff_items = []
+                info_description = ""
                 if dx >= threshold:
-                    description += f"insert_point_x({old_x},{new_x})\n"
+                    info_diff_items.append(f"insert_point_x({old_x},{new_x})")
+                    info_description += f"insert_point_x({old_x},{new_x})\n"
                 if dy >= threshold:
-                    description += f"insert_point_y({old_y},{new_y})\n"
+                    info_diff_items.append(f"insert_point_y({old_y},{new_y})")
+                    info_description += f"insert_point_y({old_y},{new_y})\n"
                 if dz >= threshold:
-                    description += f"insert_point_z({old_z},{new_z})\n"
+                    info_diff_items.append(f"insert_point_z({old_z},{new_z})")
+                    info_description += f"insert_point_z({old_z},{new_z})\n"
 
-                if len(description) > 0:
+                if info_diff_items:
+                    position_detail = {
+                        'summary': f"坐标偏移量：dx={dx:.4f}, dy={dy:.4f}, dz={dz:.4f} (阈值:{threshold})",
+                        'diff_items': info_diff_items,
+                    }
                     is_vmb = isinstance(device, str) and device.startswith('VMB')
                     is_iline_or_gpb = device in ['I_LINE', 'GPB']
                     should_add_interface = device in ['TAKEOFF', 'NEW_INTER_'] or is_vmb or is_iline_or_gpb
@@ -155,8 +161,8 @@ class BlockPositionCheck(BaseRule):
                         results.append(CheckResult(
                             type=self.rule_type,
                             name="图块位置变更",
-                            description=description,
-                            detail=f"坐标偏移量：dx={dx:.4f}, dy={dy:.4f}, dz={dz:.4f} (阈值:{threshold})",
+                            description=info_description,
+                            detail=position_detail,
                             equipment=[eq],
                             operation='update',
                             field_or_interface='field',
@@ -166,8 +172,8 @@ class BlockPositionCheck(BaseRule):
                         results.append(CheckResult(
                             type=self.rule_type,
                             name="图块位置变更",
-                            description=description,
-                            detail=f"坐标偏移量：dx={dx:.4f}, dy={dy:.4f}, dz={dz:.4f} (阈值:{threshold})",
+                            description=info_description,
+                            detail=position_detail,
                             equipment=[eq, info],
                             operation='update',
                             field_or_interface='interface',

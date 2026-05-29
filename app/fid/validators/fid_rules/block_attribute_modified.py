@@ -275,7 +275,10 @@ class BlockAttributeCheck(FIDBaseRule):
                             type=self.rule_type,
                             name="图块属性修改",
                             description=description + ' '.join(desc_changes), # 【修改】使用详细变化列表
-                            detail=description + field_detail + interface_detail,
+                            detail={
+                                'summary': description + field_detail + interface_detail,
+                                'diff_items': desc_changes,
+                            },
                             equipment=[eq],
                             operation=f'update',
                             field_or_interface='field',
@@ -286,7 +289,10 @@ class BlockAttributeCheck(FIDBaseRule):
                             type=self.rule_type,
                             name="图块属性修改",
                             description=description + ','.join(desc_changes), # 【修改】使用详细变化列表
-                            detail=description + interface_detail,
+                            detail={
+                                'summary': description + interface_detail,
+                                'diff_items': desc_changes,
+                            },
                             equipment=[eq, info],
                             operation=f'update',
                             field_or_interface='interface',

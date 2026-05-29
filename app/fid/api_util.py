@@ -40,6 +40,7 @@ from app.fid.validators import (
 
 )
 
+from app.fid.utils.diff_content import build_fid_diff_content
 from app.fid.utils.snake_to_camel import snake_to_camel
 from app.fid.utils.parse_block_attributes import parse_block_attributes
 from app.fid.utils.parse_search_id import parse_search_id
@@ -1094,7 +1095,8 @@ async def _fid_check(
                             equipment,
                         ),
                         'operation': result.operation,
-                        'detail': result.detail
+                        'detail': result.detail,
+                        'diffContent': build_fid_diff_content(result),
                     }
 
                     if not check_result_valid(_data):
@@ -1162,7 +1164,8 @@ async def _fid_check(
                         result.equipment[0].get('DISTRIBUTION_BOX'),
                         'equipmentCode': _equipment_code_for_response(equipment),
                         'operation': result.operation,
-                        'detail': result.detail
+                        'detail': result.detail,
+                        'diffContent': build_fid_diff_content(result),
                     }
 
                     if not check_result_valid(field_data):
