@@ -11,7 +11,7 @@ import asyncio
 import re
 from pathlib import Path, PurePosixPath
 
-from fastapi import File, Form, UploadFile, APIRouter, BackgroundTasks
+from fastapi import File, Form, UploadFile, APIRouter, BackgroundTasks, Header
 import ezdxf
 
 #from app.config import fid_config as config
@@ -60,6 +60,10 @@ from app.config.fid_config import FTP_CONFIG, build_eld_callback_url, build_fid_
 from app.util import make_async_accept_response, make_task_error_response, run_sync_task_with_callback
 
 router = APIRouter()
+
+
+def _resolve_x_fab_ds(form_value: str, header_value: str) -> str:
+    return (form_value or header_value or "").strip()
 
 
 async def _prepare_file_payload(file: UploadFile | str) -> dict:
@@ -144,6 +148,7 @@ def _run_eld_check_sync(file_payload: dict, form_params: dict, start_time: str) 
         "mode": form_params.get("mode", "default"),
         "mission_start_time": start_time,
         "uploadSessionToken": form_params.get("uploadSessionToken", ""),
+        "X-Fab-Ds": form_params.get("X-Fab-Ds", ""),
     }
     exec_config_path.parent.mkdir(parents=True, exist_ok=True)
     exec_config_path.write_text(json.dumps(config_json, ensure_ascii=False, indent=4), encoding="utf-8")
@@ -175,6 +180,7 @@ def _run_fid_check_sync(file_payload: dict, form_params: dict, start_time: str) 
         "mode": form_params.get("mode", "default"),
         "mission_start_time": start_time,
         "uploadSessionToken": form_params.get("uploadSessionToken", ""),
+        "X-Fab-Ds": form_params.get("X-Fab-Ds", ""),
     }
     exec_config_path.parent.mkdir(parents=True, exist_ok=True)
     exec_config_path.write_text(json.dumps(config_json, ensure_ascii=False, indent=4), encoding="utf-8")
@@ -183,21 +189,35 @@ def _run_fid_check_sync(file_payload: dict, form_params: dict, start_time: str) 
     return result
 
 
-async def _eld_check_background(file_payload: dict, form_params: dict, upload_session_token: str, start_time: str) -> None:
+async def _eld_check_background(
+    file_payload: dict,
+    form_params: dict,
+    upload_session_token: str,
+    x_fab_ds: str,
+    start_time: str,
+) -> None:
     await run_sync_task_with_callback(
         lambda: _run_eld_check_sync(file_payload, form_params, start_time),
         upload_session_token,
         build_eld_callback_url(),
         log_tag="ELD",
+        x_fab_ds=x_fab_ds,
     )
 
 
-async def _fid_check_background(file_payload: dict, form_params: dict, upload_session_token: str, start_time: str) -> None:
+async def _fid_check_background(
+    file_payload: dict,
+    form_params: dict,
+    upload_session_token: str,
+    x_fab_ds: str,
+    start_time: str,
+) -> None:
     await run_sync_task_with_callback(
         lambda: _run_fid_check_sync(file_payload, form_params, start_time),
         upload_session_token,
         build_fid_callback_url(),
         log_tag="FID",
+        x_fab_ds=x_fab_ds,
     )
 
 
@@ -226,12 +246,15 @@ async def eld_check(
     gridList: str = Form(...),
     mode: str = Form("default"),
     uploadSessionToken: str = Form(""),
+    x_fab_ds_form: str = Form("", alias="X-Fab-Ds"),
+    x_fab_ds_header: str = Header(default="", alias="X-Fab-Ds"),
 ):
     upload_session_token = (uploadSessionToken or "").strip()
+    x_fab_ds = _resolve_x_fab_ds(x_fab_ds_form, x_fab_ds_header)
     start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     logger.info(
         "-" * 30
-        + f"{datetime.datetime.now()}接收ELD参数 uploadSessionToken={upload_session_token}"
+        + f"{datetime.datetime.now()}接收ELD参数 uploadSessionToken={upload_session_token} X-Fab-Ds={x_fab_ds}"
         + "-" * 30
     )
 
@@ -252,15 +275,17 @@ async def eld_check(
         "gridList": gridList,
         "mode": mode,
         "uploadSessionToken": upload_session_token,
+        "X-Fab-Ds": x_fab_ds,
     }
     background_tasks.add_task(
         _eld_check_background,
         file_payload,
         form_params,
         upload_session_token,
+        x_fab_ds,
         start_time,
     )
-    return make_async_accept_response(upload_session_token)
+    return make_async_accept_response(upload_session_token, x_fab_ds=x_fab_ds)
 
 @router.post("/api/fid_checker")
 async def fid_check(
@@ -277,12 +302,15 @@ async def fid_check(
     systemInterfaceList: str = Form(...),
     mode: str = Form("default"),
     uploadSessionToken: str = Form(""),
+    x_fab_ds_form: str = Form("", alias="X-Fab-Ds"),
+    x_fab_ds_header: str = Header(default="", alias="X-Fab-Ds"),
 ):
     upload_session_token = (uploadSessionToken or "").strip()
+    x_fab_ds = _resolve_x_fab_ds(x_fab_ds_form, x_fab_ds_header)
     start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     logger.info(
         "-" * 30
-        + f"{datetime.datetime.now()}接收FID参数 uploadSessionToken={upload_session_token}"
+        + f"{datetime.datetime.now()}接收FID参数 uploadSessionToken={upload_session_token} X-Fab-Ds={x_fab_ds}"
         + "-" * 30
     )
 
@@ -304,15 +332,17 @@ async def fid_check(
         "systemInterfaceList": systemInterfaceList,
         "mode": mode,
         "uploadSessionToken": upload_session_token,
+        "X-Fab-Ds": x_fab_ds,
     }
     background_tasks.add_task(
         _fid_check_background,
         file_payload,
         form_params,
         upload_session_token,
+        x_fab_ds,
         start_time,
     )
-    return make_async_accept_response(upload_session_token)
+    return make_async_accept_response(upload_session_token, x_fab_ds=x_fab_ds)
 
 
 @router.post("/api/write_fid")

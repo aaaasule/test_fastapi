@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import traceback
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 import requests
@@ -36,13 +37,20 @@ def build_sync_callback_url(callback_path: str) -> str:
     return f"{base}/{path}"
 
 
-def make_async_accept_response(upload_session_token: str) -> dict[str, Any]:
-    return {
+def make_async_accept_response(
+    upload_session_token: str,
+    *,
+    x_fab_ds: str = "",
+) -> dict[str, Any]:
+    payload = {
         "code": 200,
         "message": "请求已接收，校验处理中",
         "success": True,
         "uploadSessionToken": upload_session_token,
     }
+    if x_fab_ds:
+        payload["X-Fab-Ds"] = x_fab_ds
+    return payload
 
 
 def make_task_error_response(message: str, *, detail: str | None = None) -> dict[str, Any]:
@@ -96,11 +104,25 @@ def _system_error_rows(result: dict[str, Any]) -> list[Any]:
     return [{"errors": [message]}]
 
 
+def _attach_callback_context(
+    payload: dict[str, Any],
+    upload_session_token: str,
+    *,
+    x_fab_ds: str = "",
+) -> dict[str, Any]:
+    out = dict(payload)
+    out["uploadSessionToken"] = upload_session_token
+    if x_fab_ds:
+        out["X-Fab-Ds"] = x_fab_ds
+    return out
+
+
 def format_parse_callback_payload(
     result: dict[str, Any],
     upload_session_token: str,
     *,
     module: str = "SLD",
+    x_fab_ds: str = "",
 ) -> dict[str, Any]:
     """
     将各模块内部校验结果转为统一回调结构::
@@ -119,13 +141,16 @@ def format_parse_callback_payload(
     old_success = result.get("success")
 
     if code == 400 or (old_success is None and result.get("traceback")):
-        return {
-            "uploadSessionToken": upload_session_token,
-            "success": False,
-            "errorMessage": message or "算法调用失败",
-            "errors": _system_error_rows(result),
-            "successes": [],
-        }
+        return _attach_callback_context(
+            {
+                "success": False,
+                "errorMessage": message or "算法调用失败",
+                "errors": _system_error_rows(result),
+                "successes": [],
+            },
+            upload_session_token,
+            x_fab_ds=x_fab_ds,
+        )
 
     module_upper = (module or "SLD").upper()
     if module_upper == "FID" and isinstance(data, dict):
@@ -136,21 +161,27 @@ def format_parse_callback_payload(
         errors, successes = [], []
 
     if old_success is False or errors:
-        return {
-            "uploadSessionToken": upload_session_token,
-            "success": False,
-            "errorMessage": message or "校验失败",
-            "errors": errors if errors else (list(data) if isinstance(data, list) else []),
-            "successes": successes,
-        }
+        return _attach_callback_context(
+            {
+                "success": False,
+                "errorMessage": message or "校验失败",
+                "errors": errors if errors else (list(data) if isinstance(data, list) else []),
+                "successes": successes,
+            },
+            upload_session_token,
+            x_fab_ds=x_fab_ds,
+        )
 
-    return {
-        "uploadSessionToken": upload_session_token,
-        "success": True,
-        "errorMessage": message or "调用成功",
-        "errors": [],
-        "successes": successes,
-    }
+    return _attach_callback_context(
+        {
+            "success": True,
+            "errorMessage": message or "调用成功",
+            "errors": [],
+            "successes": successes,
+        },
+        upload_session_token,
+        x_fab_ds=x_fab_ds,
+    )
 
 
 def post_parse_callback_sync(
@@ -160,6 +191,7 @@ def post_parse_callback_sync(
     *,
     log_tag: str = "PARSE",
     timeout: int = 120,
+    x_fab_ds: str = "",
 ) -> None:
     if not callback_url:
         logger.error("[%s] 未配置回调地址 sync_base_url / *_sync_callback_url", log_tag)
@@ -169,15 +201,18 @@ def post_parse_callback_sync(
         result,
         upload_session_token,
         module=log_tag,
+        x_fab_ds=x_fab_ds,
     )
+    headers = {"X-Fab-Ds": x_fab_ds} if x_fab_ds else None
     try:
-        response = requests.post(callback_url, json=payload, timeout=timeout)
+        response = requests.post(callback_url, json=payload, headers=headers, timeout=timeout)
         logger.info(
-            "[%s] 回调完成 url=%s status=%s uploadSessionToken=%s success=%s",
+            "[%s] 回调完成 url=%s status=%s uploadSessionToken=%s X-Fab-Ds=%s success=%s",
             log_tag,
             callback_url,
             response.status_code,
             upload_session_token,
+            x_fab_ds,
             payload.get("success"),
         )
         if response.status_code >= 400:
@@ -202,6 +237,7 @@ async def run_sync_task_with_callback(
     callback_url: str,
     *,
     log_tag: str = "PARSE",
+    x_fab_ds: str = "",
 ) -> None:
     """在线程池中执行同步任务，完成后 POST 回调。"""
     loop = asyncio.get_event_loop()
@@ -213,9 +249,12 @@ async def run_sync_task_with_callback(
 
     await loop.run_in_executor(
         None,
-        post_parse_callback_sync,
-        result,
-        upload_session_token,
-        callback_url,
-        log_tag=log_tag,
+        partial(
+            post_parse_callback_sync,
+            result,
+            upload_session_token,
+            callback_url,
+            log_tag=log_tag,
+            x_fab_ds=x_fab_ds,
+        ),
     )

@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Header
 
 from app.config import logger
 from app.config.fid_config import FTP_CONFIG, build_sld_callback_url
@@ -126,6 +126,7 @@ def _run_sld_check_sync(body: SldCheckRequest, start_time: str) -> dict:
         "gridList": body.gridList,
         "mission_start_time": start_time,
         "uploadSessionToken": body.uploadSessionToken,
+        "X-Fab-Ds": body.x_fab_ds,
     }
     exec_config_path.parent.mkdir(parents=True, exist_ok=True)
     exec_config_path.write_text(
@@ -150,17 +151,27 @@ def _run_sld_check_sync(body: SldCheckRequest, start_time: str) -> dict:
     }
 
 
-async def _sld_check_background(body: SldCheckRequest, upload_session_token: str, start_time: str) -> None:
+async def _sld_check_background(
+    body: SldCheckRequest,
+    upload_session_token: str,
+    x_fab_ds: str,
+    start_time: str,
+) -> None:
     await run_sync_task_with_callback(
         lambda: _run_sld_check_sync(body, start_time),
         upload_session_token,
         build_sld_callback_url(),
         log_tag="SLD",
+        x_fab_ds=x_fab_ds,
     )
 
 
 @router.post("/api/sld_checked")
-async def sld_check(body: SldCheckRequest, background_tasks: BackgroundTasks) -> dict:
+async def sld_check(
+    body: SldCheckRequest,
+    background_tasks: BackgroundTasks,
+    x_fab_ds_header: str = Header(default="", alias="X-Fab-Ds"),
+) -> dict:
     """
     SLD 校验（异步）：立即返回 ``uploadSessionToken``，后台执行校验并通过回调上报结果。
 
@@ -171,12 +182,13 @@ async def sld_check(body: SldCheckRequest, background_tasks: BackgroundTasks) ->
     回调地址：``global_config/env`` 中 ``sync_base_url`` + ``sld_sync_callback_url``。
     """
     upload_session_token = (body.uploadSessionToken or "").strip()
+    x_fab_ds = (body.x_fab_ds or x_fab_ds_header or "").strip()
     start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     logger.info(
         "-" * 30
-        + f"{datetime.datetime.now()}接收SLD参数(JSON) uploadSessionToken={upload_session_token}"
+        + f"{datetime.datetime.now()}接收SLD参数(JSON) uploadSessionToken={upload_session_token} X-Fab-Ds={x_fab_ds}"
         + "-" * 30
     )
 
-    background_tasks.add_task(_sld_check_background, body, upload_session_token, start_time)
-    return make_async_accept_response(upload_session_token)
+    background_tasks.add_task(_sld_check_background, body, upload_session_token, x_fab_ds, start_time)
+    return make_async_accept_response(upload_session_token, x_fab_ds=x_fab_ds)

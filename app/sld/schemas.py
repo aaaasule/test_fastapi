@@ -35,7 +35,7 @@ class SldCheckRequest(BaseModel):
     - equipmentList：主机台清单；**新增**设备时按元素 ``code`` 与图面 ``ID_EQU`` 匹配，回带 fab/building/group 与 equipmentId。
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     company: dict[str, Any] = Field(default_factory=dict)
     building: dict[str, Any] = Field(default_factory=dict)
@@ -48,4 +48,4 @@ class SldCheckRequest(BaseModel):
     fab: dict[str, Any] = Field(default_factory=dict)
     file: str = ""  # local:<app/sld 下路径> 或 FTP 远端路径（无前缀）
     uploadSessionToken: str = ""  # 异步会话令牌，立即响应与回调结果均回传
-
+    x_fab_ds: str = Field(default="", alias="X-Fab-Ds")  # 数据源标识，回调原样回传
