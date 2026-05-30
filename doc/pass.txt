@@ -1,9 +1,10 @@
-📥 下载成功: /app/app/sld/work/sld_YMTCSLDFAB1F2/YMTC^SLD^FAB1^F2_20260530_142812.dxf
-2026-05-30 14:29:19 - backen-fastapi - INFO - [SLD] 回调完成 url=http://10.22.64.89:8080/efms/equipment/sldFile/onSldParseComplete status=405 uploadSessionToken=20d78613-f005-40a7-8358-0b651158032f success=True
-2026-05-30 14:29:19 - backen-fastapi - ERROR - [SLD] 回调失败 status=405 body=<html>
-<head><title>405 Not Allowed</title></head>
-<body>
-<center><h1>405 Not Allowed</h1></center>
-<hr><center>nginx/1.18.0</center>
-</body>
-</html>
+{
+  "code": 400,
+  "message": "算法调用失败: _eld_check() got an unexpected keyword argument 'uploadSessionToken'",
+  "traceback": "Traceback (most recent call last):\n  File \"/app/app/fid/eld_check_cli.py\", line 28, in main\n    result = asyncio.run(_eld_check(**params))\nTypeError: _eld_check() got an unexpected keyword argument 'uploadSessionToken'\n"
+}
+{
+  "code": 400,
+  "message": "算法调用失败: _fid_check() got an unexpected keyword argument 'uploadSessionToken'",
+  "traceback": "Traceback (most recent call last):\n  File \"/app/app/fid/fid_check_cli.py\", line 28, in main\n    result = asyncio.run(_fid_check(**params))\nTypeError: _fid_check() got an unexpected keyword argument 'uploadSessionToken'\n"
+}
