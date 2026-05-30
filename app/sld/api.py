@@ -1,23 +1,22 @@
 # -*- coding: utf-8 -*-
-"""SLD 校验 HTTP 接口：保存 DXF、写 exec_config、子进程执行 cli、读结果。"""
+"""SLD 校验 HTTP 接口：异步接收 → 后台校验 → 回调返回结果。"""
 from __future__ import annotations
 
-import asyncio
 import datetime
 import json
 import re
 import shutil
 import subprocess
 import sys
-import traceback
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 
 from app.config import logger
-from app.config.fid_config import FTP_CONFIG
+from app.config.fid_config import FTP_CONFIG, build_sld_callback_url
 from app.fid.utils.ftp_download import download_file_from_ftp
 from app.sld.schemas import SldCheckRequest
+from app.util import make_async_accept_response, make_task_error_response, run_sync_task_with_callback
 
 router = APIRouter()
 
@@ -36,13 +35,7 @@ def _is_path_under(base: Path, path: Path) -> bool:
 
 
 def _api_error(message: str, *, detail: str | None = None) -> dict:
-    errs = [detail] if detail else [message]
-    return {
-        "code": 400,
-        "message": message,
-        "success": False,
-        "data": [{"errors": errs}],
-    }
+    return make_task_error_response(message, detail=detail)
 
 
 def _resolve_local_under_sld(local_path: str) -> Path | dict:
@@ -83,93 +76,107 @@ def _stem_for_work_dir(file_ref: str) -> str:
     return Path(path_str.replace("\\", "/")).stem
 
 
+def _run_sld_check_sync(body: SldCheckRequest, start_time: str) -> dict:
+    """同步执行：保存 DXF、写 exec_config、子进程校验、读结果。"""
+    file_ref = (body.file or "").strip()
+    if not file_ref:
+        return _api_error("file 不能为空", detail="file 不能为空")
+
+    use_local = file_ref.startswith(LOCAL_FILE_PREFIX)
+    stem = _stem_for_work_dir(file_ref)
+    filename = re.sub("[^a-zA-Z0-9]", "", stem)
+    work_dir = SLD_DIR / "work" / f"sld_{filename}"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    file_path = work_dir / f"{stem}_{start_time}.dxf"
+
+    try:
+        if use_local:
+            local_path = file_ref[len(LOCAL_FILE_PREFIX) :]
+            resolved = _resolve_local_under_sld(local_path)
+            if isinstance(resolved, dict):
+                return resolved
+            shutil.copy2(resolved, file_path)
+            file_path = file_path.resolve()
+        else:
+            file_path = file_path.resolve()
+            download_file_from_ftp(
+                host=FTP_CONFIG["host"],
+                username=FTP_CONFIG["username"],
+                password=FTP_CONFIG["password"],
+                port=FTP_CONFIG["port"],
+                local_file_path=str(file_path),
+                remote_filename=file_ref,
+            )
+    except Exception as save_exc:
+        raise Exception(f"DXF文件保存遇到错误：{str(save_exc)}") from save_exc
+
+    exec_config_path = work_dir / f"exec_config_{start_time}.json"
+    log_file = exec_config_path.parent / f"{start_time}.log"
+
+    config_json = {
+        "file_path": str(file_path),
+        "company": body.company,
+        "fab": body.fab,
+        "building": body.building,
+        "buildingLevel": body.buildingLevel,
+        "equipmentList": body.equipmentList,
+        "equipmentGroupList": body.equipmentGroupList,
+        "eldSubEquipmentList": body.eldSubEquipmentList,
+        "layerList": body.layerList,
+        "gridList": body.gridList,
+        "mission_start_time": start_time,
+        "uploadSessionToken": body.uploadSessionToken,
+    }
+    exec_config_path.parent.mkdir(parents=True, exist_ok=True)
+    exec_config_path.write_text(
+        json.dumps(config_json, ensure_ascii=False, indent=4),
+        encoding="utf-8",
+    )
+
+    cmd = [sys.executable, "-u", "-m", "app.sld.cli", str(exec_config_path.absolute())]
+    with open(log_file, "w", encoding="utf-8") as log_f:
+        result = subprocess.run(cmd, stdout=log_f, stderr=subprocess.STDOUT, text=True)
+    returncode = result.returncode
+
+    result_path = Path(exec_config_path).parent / f"result_{start_time}.json"
+    if result_path.is_file():
+        with open(result_path, encoding="utf-8") as f:
+            return json.load(f)
+    return {
+        "code": 400,
+        "message": f"子进程未生成结果(returncode={returncode})，日志: {log_file}",
+        "success": False,
+        "data": [{"errors": [f"子进程 returncode={returncode}"]}],
+    }
+
+
+async def _sld_check_background(body: SldCheckRequest, upload_session_token: str, start_time: str) -> None:
+    await run_sync_task_with_callback(
+        lambda: _run_sld_check_sync(body, start_time),
+        upload_session_token,
+        build_sld_callback_url(),
+        log_tag="SLD",
+    )
+
+
 @router.post("/api/sld_checked")
-async def sld_check(body: SldCheckRequest) -> dict:
+async def sld_check(body: SldCheckRequest, background_tasks: BackgroundTasks) -> dict:
     """
-    SLD 校验：JSON Body，字段与《SLD和FID回填》「SLD校验」一致。
+    SLD 校验（异步）：立即返回 ``uploadSessionToken``，后台执行校验并通过回调上报结果。
 
     ``file`` 约定：
     - ``local:<path>``：``app/sld`` 下本地 DXF（``path`` 相对 ``app/sld`` 或绝对路径但须在目录内）；
     - 其它值：FTP 远端路径（原样 ``RETR``，可含 ``/`` 多级目录）。
+
+    回调地址：``global_config/env`` 中 ``sync_base_url`` + ``sld_sync_callback_url``。
     """
-    try:
-        logger.info("-" * 30 + f"{datetime.datetime.now()}接收SLD参数(JSON)" + "-" * 30)
-        start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    upload_session_token = (body.uploadSessionToken or "").strip()
+    start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    logger.info(
+        "-" * 30
+        + f"{datetime.datetime.now()}接收SLD参数(JSON) uploadSessionToken={upload_session_token}"
+        + "-" * 30
+    )
 
-        file_ref = (body.file or "").strip()
-        if not file_ref:
-            return _api_error("file 不能为空", detail="file 不能为空")
-
-        use_local = file_ref.startswith(LOCAL_FILE_PREFIX)
-        stem = _stem_for_work_dir(file_ref)
-        filename = re.sub("[^a-zA-Z0-9]", "", stem)
-        work_dir = SLD_DIR / "work" / f"sld_{filename}"
-        work_dir.mkdir(parents=True, exist_ok=True)
-        file_path = work_dir / f"{stem}_{start_time}.dxf"
-
-        try:
-            if use_local:
-                local_path = file_ref[len(LOCAL_FILE_PREFIX) :]
-                resolved = _resolve_local_under_sld(local_path)
-                if isinstance(resolved, dict):
-                    return resolved
-                shutil.copy2(resolved, file_path)
-                file_path = file_path.resolve()
-            else:
-                file_path = file_path.resolve()
-                download_file_from_ftp(
-                    host=FTP_CONFIG["host"],
-                    username=FTP_CONFIG["username"],
-                    password=FTP_CONFIG["password"],
-                    port=FTP_CONFIG["port"],
-                    local_file_path=str(file_path),
-                    remote_filename=file_ref,
-                )
-        except Exception as save_exc:
-            raise Exception(f"DXF文件保存遇到错误：{str(save_exc)}") from save_exc
-
-        exec_config_path = work_dir / f"exec_config_{start_time}.json"
-        log_file = exec_config_path.parent / f"{start_time}.log"
-
-        config_json = {
-            "file_path": str(file_path),
-            "company": body.company,
-            "fab": body.fab,
-            "building": body.building,
-            "buildingLevel": body.buildingLevel,
-            "equipmentList": body.equipmentList,
-            "equipmentGroupList": body.equipmentGroupList,
-            "eldSubEquipmentList": body.eldSubEquipmentList,
-            "layerList": body.layerList,
-            "gridList": body.gridList,
-            "mission_start_time": start_time,
-        }
-        exec_config_path.parent.mkdir(parents=True, exist_ok=True)
-        exec_config_path.write_text(
-            json.dumps(config_json, ensure_ascii=False, indent=4),
-            encoding="utf-8",
-        )
-
-        def run_subprocess_sync() -> int:
-            cmd = [sys.executable, "-u", "-m", "app.sld.cli", str(exec_config_path.absolute())]
-            with open(log_file, "w", encoding="utf-8") as log_f:
-                result = subprocess.run(cmd, stdout=log_f, stderr=subprocess.STDOUT, text=True)
-            return result.returncode
-
-        loop = asyncio.get_event_loop()
-        returncode = await loop.run_in_executor(None, run_subprocess_sync)
-
-        result_path = Path(exec_config_path).parent / f"result_{start_time}.json"
-        if result_path.is_file():
-            with open(result_path, encoding="utf-8") as f:
-                return json.load(f)
-        return {
-            "code": 400,
-            "message": f"子进程未生成结果(returncode={returncode})，日志: {log_file}",
-            "success": False,
-            "data": [{"errors": [f"子进程 returncode={returncode}"]}],
-        }
-
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        return _api_error(f"算法调用失败: {str(e)}", detail=str(e))
+    background_tasks.add_task(_sld_check_background, body, upload_session_token, start_time)
+    return make_async_accept_response(upload_session_token)

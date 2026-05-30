@@ -82,6 +82,35 @@ def build_ftp_config(env_prefix: str) -> dict:
 
 FTP_CONFIG = build_ftp_config('FTP')
 
+
+def _env_str(key: str, default: str = "") -> str:
+    return (os.getenv(key) or default).strip().strip('"').strip("'")
+
+
+SYNC_BASE_URL = _env_str("sync_base_url").rstrip("/")
+SLD_SYNC_CALLBACK_PATH = _env_str("sld_sync_callback_url").lstrip("/")
+ELD_SYNC_CALLBACK_PATH = _env_str("eld_sync_callback_url").lstrip("/")
+FID_SYNC_CALLBACK_PATH = _env_str("fid_sync_callback_url").lstrip("/")
+
+
+def build_sld_callback_url() -> str:
+    if not SYNC_BASE_URL or not SLD_SYNC_CALLBACK_PATH:
+        return ""
+    return f"{SYNC_BASE_URL}/{SLD_SYNC_CALLBACK_PATH}"
+
+
+def build_eld_callback_url() -> str:
+    if not SYNC_BASE_URL or not ELD_SYNC_CALLBACK_PATH:
+        return ""
+    return f"{SYNC_BASE_URL}/{ELD_SYNC_CALLBACK_PATH}"
+
+
+def build_fid_callback_url() -> str:
+    if not SYNC_BASE_URL or not FID_SYNC_CALLBACK_PATH:
+        return ""
+    return f"{SYNC_BASE_URL}/{FID_SYNC_CALLBACK_PATH}"
+
+
 # 打印调试信息 (生产环境请关闭)
 if __name__ == "__main__":
     print(f"Upload Dir: {UPLOAD_DIR}")

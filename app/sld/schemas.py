@@ -47,3 +47,5 @@ class SldCheckRequest(BaseModel):
     gridList: list[Any] = Field(default_factory=list)
     fab: dict[str, Any] = Field(default_factory=dict)
     file: str = ""  # local:<app/sld 下路径> 或 FTP 远端路径（无前缀）
+    uploadSessionToken: str = ""  # 异步会话令牌，立即响应与回调结果均回传
+

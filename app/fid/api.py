@@ -11,7 +11,7 @@ import asyncio
 import re
 from pathlib import Path, PurePosixPath
 
-from fastapi import File, Form, UploadFile, APIRouter
+from fastapi import File, Form, UploadFile, APIRouter, BackgroundTasks
 import ezdxf
 
 #from app.config import fid_config as config
@@ -56,9 +56,149 @@ else:
 # 3. 将项目根目录加入 Python 搜索路径
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
-from app.config.fid_config import FTP_CONFIG
+from app.config.fid_config import FTP_CONFIG, build_eld_callback_url, build_fid_callback_url
+from app.util import make_async_accept_response, make_task_error_response, run_sync_task_with_callback
 
 router = APIRouter()
+
+
+async def _prepare_file_payload(file: UploadFile | str) -> dict:
+    if isinstance(file, str):
+        return {"source": "ftp", "remote_path": file}
+    return {
+        "source": "upload",
+        "filename": file.filename or "upload.dxf",
+        "content": await file.read(),
+    }
+
+
+def _save_dxf_from_payload(file_payload: dict, work_dir: Path, start_time: str) -> Path:
+    if file_payload["source"] == "upload":
+        stem = Path(file_payload["filename"]).stem
+        work_dir.mkdir(parents=True, exist_ok=True)
+        file_path = work_dir / f"{stem}_{start_time}.dxf"
+        with open(file_path, "wb") as f:
+            f.write(file_payload["content"])
+        return file_path.absolute()
+
+    remote_path = file_payload["remote_path"]
+    stem = Path(remote_path).stem
+    work_dir.mkdir(parents=True, exist_ok=True)
+    file_path = work_dir / f"{stem}_{start_time}.dxf"
+    download_file_from_ftp(
+        host=FTP_CONFIG["host"],
+        username=FTP_CONFIG["username"],
+        password=FTP_CONFIG["password"],
+        port=FTP_CONFIG["port"],
+        local_file_path=str(file_path),
+        remote_filename=remote_path,
+    )
+    return file_path.absolute()
+
+
+def _run_check_subprocess(exec_config_path: Path, cli_script: str, start_time: str) -> dict:
+    log_file = exec_config_path.parent / f"{start_time}.log"
+    cmd = [
+        sys.executable,
+        "-u",
+        str(Path(__file__).parent / cli_script),
+        str(exec_config_path.absolute()),
+    ]
+    with open(log_file, "w", encoding="utf-8") as log_f:
+        proc = subprocess.run(cmd, stdout=log_f, stderr=subprocess.STDOUT, text=True)
+    returncode = proc.returncode
+
+    result_path = exec_config_path.parent / f"result_{start_time}.json"
+    if result_path.is_file():
+        with open(result_path, encoding="utf-8") as f:
+            return json.load(f)
+    return {
+        "code": 400,
+        "message": f"子进程未生成结果(returncode={returncode})，日志: {log_file}",
+        "success": False,
+        "data": [{"errors": [f"子进程 returncode={returncode}"]}],
+    }
+
+
+def _run_eld_check_sync(file_payload: dict, form_params: dict, start_time: str) -> dict:
+    remote_or_name = (
+        file_payload["remote_path"]
+        if file_payload["source"] == "ftp"
+        else file_payload["filename"]
+    )
+    filename = re.sub("[^a-zA-Z0-9]", "", Path(remote_or_name).stem)
+    work_dir = Path(config.UPLOAD_DIR) / f"eld_{filename}"
+    file_path = _save_dxf_from_payload(file_payload, work_dir, start_time)
+
+    exec_config_path = work_dir / f"exec_config_{start_time}.json"
+    config_json = {
+        "file_path": str(file_path),
+        "company": json.loads(form_params["company"]),
+        "fab": json.loads(form_params["fab"]),
+        "building": json.loads(form_params["building"]),
+        "buildingLevel": json.loads(form_params["buildingLevel"]),
+        "equipmentList": json.loads(form_params["equipmentList"]),
+        "equipmentGroupList": json.loads(form_params["equipmentGroupList"]),
+        "layerList": json.loads(form_params["layerList"]),
+        "gridList": json.loads(form_params["gridList"]),
+        "mode": form_params.get("mode", "default"),
+        "mission_start_time": start_time,
+        "uploadSessionToken": form_params.get("uploadSessionToken", ""),
+    }
+    exec_config_path.parent.mkdir(parents=True, exist_ok=True)
+    exec_config_path.write_text(json.dumps(config_json, ensure_ascii=False, indent=4), encoding="utf-8")
+    return _run_check_subprocess(exec_config_path, "eld_check_cli.py", start_time)
+
+
+def _run_fid_check_sync(file_payload: dict, form_params: dict, start_time: str) -> dict:
+    remote_or_name = (
+        file_payload["remote_path"]
+        if file_payload["source"] == "ftp"
+        else file_payload["filename"]
+    )
+    filename = re.sub("[^a-zA-Z0-9]", "", Path(remote_or_name).stem)
+    work_dir = Path(config.UPLOAD_DIR) / f"fid_{filename}"
+    file_path = _save_dxf_from_payload(file_payload, work_dir, start_time)
+
+    exec_config_path = work_dir / f"exec_config_{start_time}.json"
+    config_json = {
+        "file_path": str(file_path),
+        "company": json.loads(form_params["company"]),
+        "fab": json.loads(form_params["fab"]),
+        "building": json.loads(form_params["building"]),
+        "buildingLevel": json.loads(form_params["buildingLevel"]),
+        "system": json.loads(form_params["system"]),
+        "subsystemList": json.loads(form_params["subsystemList"]),
+        "fieldList": json.loads(form_params["fieldList"]),
+        "interfaceList": json.loads(form_params["interfaceList"]),
+        "systemInterfaceList": json.loads(form_params["systemInterfaceList"]),
+        "mode": form_params.get("mode", "default"),
+        "mission_start_time": start_time,
+        "uploadSessionToken": form_params.get("uploadSessionToken", ""),
+    }
+    exec_config_path.parent.mkdir(parents=True, exist_ok=True)
+    exec_config_path.write_text(json.dumps(config_json, ensure_ascii=False, indent=4), encoding="utf-8")
+    result = _run_check_subprocess(exec_config_path, "fid_check_cli.py", start_time)
+    cleanup_old_logs(config.UPLOAD_DIR, config.MEMORY_LIMIT)
+    return result
+
+
+async def _eld_check_background(file_payload: dict, form_params: dict, upload_session_token: str, start_time: str) -> None:
+    await run_sync_task_with_callback(
+        lambda: _run_eld_check_sync(file_payload, form_params, start_time),
+        upload_session_token,
+        build_eld_callback_url(),
+        log_tag="ELD",
+    )
+
+
+async def _fid_check_background(file_payload: dict, form_params: dict, upload_session_token: str, start_time: str) -> None:
+    await run_sync_task_with_callback(
+        lambda: _run_fid_check_sync(file_payload, form_params, start_time),
+        upload_session_token,
+        build_fid_callback_url(),
+        log_tag="FID",
+    )
 
 
 def _write_fid_safe_segment(name: str, fallback: str = "fid") -> str:
@@ -74,239 +214,105 @@ def _write_fid_safe_segment(name: str, fallback: str = "fid") -> str:
 
 @router.post("/api/eld_checked")
 async def eld_check(
+    background_tasks: BackgroundTasks,
     file: UploadFile | str = File(...),
     company: str = Form(...),
     fab: str = Form(...),
     building: str = Form(...),
     buildingLevel: str = Form(...),
-    equipmentList: str = Form(...),  # 必须是字符串
+    equipmentList: str = Form(...),
     equipmentGroupList: str = Form(...),
     layerList: str = Form(...),
     gridList: str = Form(...),
     mode: str = Form("default"),
+    uploadSessionToken: str = Form(""),
 ):
+    upload_session_token = (uploadSessionToken or "").strip()
+    start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    logger.info(
+        "-" * 30
+        + f"{datetime.datetime.now()}接收ELD参数 uploadSessionToken={upload_session_token}"
+        + "-" * 30
+    )
+
     try:
-        # result = await _eld_check(file, company, fab, building, buildingLevel, equipmentList,
-        #                    equipmentGroupList, layerList, gridList)
-        logger.info('-' * 30 + f'{datetime.datetime.now()}接收ELD参数' + '-' * 30)
-        start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        try:
-            if not isinstance(file, str):
-                filename = re.sub('[^a-zA-Z0-9]', '', Path(file.filename).stem)
-                work_dir = Path(config.UPLOAD_DIR) / f"eld_{filename}"
-                work_dir.mkdir(parents=True, exist_ok=True)
-
-                file_path = work_dir / f"{Path(file.filename).stem}_{start_time}.dxf"
-                with open(file_path, 'wb') as f:
-                    file_content = await file.read()
-                    f.write(file_content)
-                file_path = file_path.absolute()
-            else:
-                filename = re.sub('[^a-zA-Z0-9]', '', Path(file).stem)
-                work_dir = Path(config.UPLOAD_DIR) / f"eld_{filename}"
-                file_path = work_dir / f"{Path(file).stem}_{start_time}.dxf"
-                work_dir.mkdir(parents=True, exist_ok=True)
-
-                download_file_from_ftp(
-                    host=FTP_CONFIG['host'],
-                    username=FTP_CONFIG['username'],
-                    password=FTP_CONFIG['password'],
-                    port=FTP_CONFIG['port'],
-                    local_file_path=str(file_path),
-                    remote_filename=file
-                )
-        except Exception as save_dxf_exception:
-            raise Exception(f'dxf文件保存遇到错误： {str(save_dxf_exception)}')
-
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        #log_file = Path("./logs") / f"eld_{Path(file.filename).stem}" /f"{timestamp}.log"
-
-
-
-        exec_config_path = work_dir / f'exec_config_{start_time}.json'
-        log_file = exec_config_path.parent / f"{timestamp}.log"
-
-        exec_config_path.parent.mkdir(parents=True, exist_ok=True)
-
-        config_json = {
-            'file_path': str(file_path),
-            'company': json.loads(company),
-            'fab': json.loads(fab),
-            'building': json.loads(building),
-            'buildingLevel': json.loads(buildingLevel),
-            'equipmentList':json.loads(equipmentList),
-            'equipmentGroupList':json.loads(equipmentGroupList),
-            'layerList':json.loads(layerList),
-            'gridList':json.loads(gridList),
-            'mode': mode,
-            'mission_start_time': start_time
-        }
-        with open(exec_config_path, 'w', encoding='utf-8') as f:
-            f.write(json.dumps(config_json, ensure_ascii=False, indent=4))
-
-        # --- 同步子进程函数（将被 run_in_executor 调用）---
-        def run_subprocess_sync():
-            cmd = [
-                sys.executable, "-u",
-                str(Path(__file__).parent / "eld_check_cli.py"),
-                str(exec_config_path.absolute())
-            ]
-            with open(log_file, "w", encoding="utf-8") as log_f:
-                result = subprocess.run(
-                    cmd,
-                    stdout=log_f,
-                    stderr=subprocess.STDOUT,
-                    text=True
-                )
-            return result.returncode
-
-        loop = asyncio.get_event_loop()
-        returncode = await loop.run_in_executor(None, run_subprocess_sync)
-
-        if returncode == 0:
-            try:
-                with open(Path(exec_config_path).parent / f'result_{start_time}.json', 'r', encoding='utf-8') as f:
-                    result = json.load(f)
-                return result
-            except json.JSONDecodeError:
-                raise RuntimeError("子进程返回非JSON结果")
-        else:
-            raise RuntimeError(f"子进程执行失败，日志: {log_file}")
-
+        file_payload = await _prepare_file_payload(file)
     except Exception as e:
-        return {
-            "code": 400,
-            "message": f"算法调用失败: {str(e)}"
-        }
+        logger.error(traceback.format_exc())
+        return make_task_error_response(f"算法调用失败: {str(e)}", detail=str(e))
+
+    form_params = {
+        "company": company,
+        "fab": fab,
+        "building": building,
+        "buildingLevel": buildingLevel,
+        "equipmentList": equipmentList,
+        "equipmentGroupList": equipmentGroupList,
+        "layerList": layerList,
+        "gridList": gridList,
+        "mode": mode,
+        "uploadSessionToken": upload_session_token,
+    }
+    background_tasks.add_task(
+        _eld_check_background,
+        file_payload,
+        form_params,
+        upload_session_token,
+        start_time,
+    )
+    return make_async_accept_response(upload_session_token)
 
 @router.post("/api/fid_checker")
 async def fid_check(
-        file: UploadFile | str = Form(...),
-        company: str = Form(...),
-        fab: str = Form(...),
-        building: str = Form(...),
-        buildingLevel: str = Form(...),
-        system: str = Form(...),  # 必须是字符串
-        subsystemList: str = Form(...),
-        fieldList: str = Form(...),
-        interfaceList: str = Form(...),
-        systemInterfaceList: str = Form(...),
-        mode: str = Form("default"),
+    background_tasks: BackgroundTasks,
+    file: UploadFile | str = File(...),
+    company: str = Form(...),
+    fab: str = Form(...),
+    building: str = Form(...),
+    buildingLevel: str = Form(...),
+    system: str = Form(...),
+    subsystemList: str = Form(...),
+    fieldList: str = Form(...),
+    interfaceList: str = Form(...),
+    systemInterfaceList: str = Form(...),
+    mode: str = Form("default"),
+    uploadSessionToken: str = Form(""),
 ):
+    upload_session_token = (uploadSessionToken or "").strip()
+    start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    logger.info(
+        "-" * 30
+        + f"{datetime.datetime.now()}接收FID参数 uploadSessionToken={upload_session_token}"
+        + "-" * 30
+    )
+
     try:
-        logger.info('-' * 30 + f'{datetime.datetime.now()}接收FID参数' + '-' * 30)
-        start_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        try:
-            if not isinstance(file, str):
-                filename = re.sub('[^a-zA-Z0-9]', '', Path(file.filename).stem)
-                work_dir = Path(config.UPLOAD_DIR) / f"fid_{filename}"
-                work_dir.mkdir(parents=True, exist_ok=True)
-                file_path = work_dir / f"{Path(file.filename).stem}_{start_time}.dxf"
-                with open(file_path, 'wb') as f:
-                    file_content = await file.read()
-                    f.write(file_content)
-                file_path = file_path.absolute()
-            else:
-                filename = re.sub('[^a-zA-Z0-9]', '', Path(file).stem)
-                work_dir = Path(config.UPLOAD_DIR) / f"fid_{filename}"
-                file_path = work_dir / f"{Path(file).stem}_{start_time}.dxf"
-                work_dir.mkdir(parents=True, exist_ok=True)
-                download_file_from_ftp(
-                    host=FTP_CONFIG['host'],
-                    username=FTP_CONFIG['username'],
-                    password=FTP_CONFIG['password'],
-                    port=FTP_CONFIG['port'],
-                    local_file_path=str(file_path),
-                    remote_filename=file
-                )
-        except Exception as save_dxf_exception:
-            raise Exception(f'dxf文件保存遇到错误： {str(save_dxf_exception)}')
-
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        #log_file = Path("./logs") / f"fid_{Path(file.filename).stem}" /f"{timestamp}.log"
-
-        # separator = "-" * 20  # 定义分割线长度
-
-        # with open(work_dir / f'rec_config_{start_time}.txt', 'w', encoding='utf-8') as f:
-        #     # 辅助函数：写入标签、值和分割线
-        #     def write_field(label, value):
-        #         f.write(f"{label}: {value}\n")
-        #         f.write(f"{separator}\n")
-
-        #     write_field("File", file)
-        #     write_field("Company", company)
-        #     write_field("Fab", fab)
-        #     write_field("Building", building)
-        #     write_field("Building Level", buildingLevel)
-        #     write_field("System", system)
-        #     write_field("Subsystem List", subsystemList)
-        #     write_field("Field List", fieldList)
-        #     write_field("Interface List", interfaceList)
-        #     write_field("System Interface List", systemInterfaceList)
-
-        #     f.write("End of Config\n")  # 结束标记
-
-        exec_config_path = work_dir / f'exec_config_{start_time}.json'
-        log_file = exec_config_path.parent / f"{timestamp}.log"
-
-        exec_config_path.parent.mkdir(parents=True, exist_ok=True)
-
-        config_json = {
-            'file_path': str(file_path),
-            'company': json.loads(company),
-            'fab': json.loads(fab),
-            'building': json.loads(building),
-            'buildingLevel': json.loads(buildingLevel),
-            'system':json.loads(system),
-            'subsystemList':json.loads(subsystemList),
-            'fieldList':json.loads(fieldList),
-            'interfaceList':json.loads(interfaceList),
-            'systemInterfaceList':json.loads(systemInterfaceList),
-            'mode': mode,
-            'mission_start_time': start_time
-        }
-        with open(exec_config_path, 'w', encoding='utf-8') as f:
-            f.write(json.dumps(config_json, ensure_ascii=False, indent=4))
-
-        # --- 同步子进程函数（将被 run_in_executor 调用）---
-        def run_subprocess_sync():
-            cmd = [
-                sys.executable, "-u",
-                str(Path(__file__).parent / "fid_check_cli.py"),
-                str(exec_config_path.absolute())
-            ]
-            with open(log_file, "w", encoding="utf-8") as log_f:
-                result = subprocess.run(
-                    cmd,
-                    stdout=log_f,
-                    stderr=subprocess.STDOUT,
-                    text=True
-                )
-            return result.returncode
-
-        # --- 异步执行同步函数 ---
-        loop = asyncio.get_event_loop()
-        returncode = await loop.run_in_executor(None, run_subprocess_sync)
-
-        if returncode == 0:
-            try:
-                with open(Path(exec_config_path).parent / f'result_{start_time}.json', 'r', encoding='utf-8') as f:
-                    result = json.load(f)
-
-                cleanup_old_logs(config.UPLOAD_DIR, config.MEMORY_LIMIT)
-                return result
-            except json.JSONDecodeError:
-                raise RuntimeError("子进程返回非JSON结果")
-        else:
-            raise RuntimeError(f"子进程执行失败，日志: {log_file}")
-
+        file_payload = await _prepare_file_payload(file)
     except Exception as e:
-        return {
-            "code": 400,
-            "message": f"算法调用失败: {str(e)}"
-        }
+        logger.error(traceback.format_exc())
+        return make_task_error_response(f"算法调用失败: {str(e)}", detail=str(e))
+
+    form_params = {
+        "company": company,
+        "fab": fab,
+        "building": building,
+        "buildingLevel": buildingLevel,
+        "system": system,
+        "subsystemList": subsystemList,
+        "fieldList": fieldList,
+        "interfaceList": interfaceList,
+        "systemInterfaceList": systemInterfaceList,
+        "mode": mode,
+        "uploadSessionToken": upload_session_token,
+    }
+    background_tasks.add_task(
+        _fid_check_background,
+        file_payload,
+        form_params,
+        upload_session_token,
+        start_time,
+    )
+    return make_async_accept_response(upload_session_token)
 
 
 @router.post("/api/write_fid")
