@@ -14,6 +14,6 @@ DISABLE_FAB=1,2
 
 # 异步回调接口
 sync_base_url = "http://10.22.64.89:8080"
-eld_sync_callback_url = "equipment/eldFile/onEldParseComplete"
-sld_sync_callback_url = "equipment/sldFile/onSldParseComplete"
-fid_sync_callback_url = "equipment/fidFile/onFidParseComplete"
+eld_sync_callback_url = "efms/equipment/eldFile/onEldParseComplete"
+sld_sync_callback_url = "efms/equipment/sldFile/onSldParseComplete"
+fid_sync_callback_url = "efms/equipment/fidFile/onFidParseComplete"
