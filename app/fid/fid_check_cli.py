@@ -12,6 +12,16 @@ if str(PARENT_DIR) not in sys.path:
 from api_util import _eld_check, _fid_check
 import asyncio
 
+# exec_config 中仅供 HTTP/回调使用，不传入校验核心函数
+_EXEC_CONFIG_META_KEYS = ("uploadSessionToken", "X-Fab-Ds")
+
+
+def _params_for_check(params: dict) -> dict:
+    out = dict(params)
+    for key in _EXEC_CONFIG_META_KEYS:
+        out.pop(key, None)
+    return out
+
 
 def main():
     try:
@@ -25,7 +35,7 @@ def main():
         # 调用核心逻辑（需改造 _eld_check）
         #result = _fid_check(**params)
         params['cache_folder'] = str(Path(config_path).parent)
-        result = asyncio.run(_fid_check(**params))
+        result = asyncio.run(_fid_check(**_params_for_check(params)))
 
         # 输出 JSON 到 stdout（供父进程读取）
         #print(json.dumps(result, ensure_ascii=False, indent=2))
