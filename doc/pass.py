@@ -99,6 +99,10 @@ def _process_insert_entity(
     *,
     doc: ezdxf.document.Drawing | None = None,
 ) -> None:
+    # iterdxf 在 types 含 INSERT 时会一并加载 SEQEND/ATTRIB，孤立 SEQEND 也可能被 yield
+    if entity.dxftype() != "INSERT":
+        return
+
     block_name = entity.dxf.name
     if doc is not None and block_name not in doc.blocks:
         return
@@ -145,7 +149,9 @@ def _process_insert_entity(
 
 def _iter_inserts_iterdxf(dxf_path: str | Path) -> Iterator[Any]:
     """仅解析 ENTITIES 中的 INSERT，不构建完整 Drawing。"""
-    yield from iterdxf.modelspace(str(dxf_path), types=["INSERT"])
+    for entity in iterdxf.modelspace(str(dxf_path), types=["INSERT"]):
+        if entity.dxftype() == "INSERT":
+            yield entity
 
 
 def _fid_parse_via_iterdxf(dxf_path: str, filename: str) -> dict[str, list]:
@@ -182,7 +188,11 @@ def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> L
     try:
         if can_use_iterdxf(path):
             print("DXF 解析模式: iterdxf (仅 INSERT)")
-            equipments = _fid_parse_via_iterdxf(str(path), filename)
+            try:
+                equipments = _fid_parse_via_iterdxf(str(path), filename)
+            except (ezdxf.DXFAttributeError, ezdxf.DXFStructureError) as iter_exc:
+                print(f"iterdxf 解析异常，回退完整 Drawing: {iter_exc}")
+                equipments = _fid_parse_via_drawing(str(path), filename)
         else:
             print("DXF 解析模式: 完整 Drawing 加载")
             equipments = _fid_parse_via_drawing(str(path), filename)
