@@ -1,10 +1,5 @@
 {
   "code": 400,
-  "message": "算法调用失败: _eld_check() got an unexpected keyword argument 'uploadSessionToken'",
-  "traceback": "Traceback (most recent call last):\n  File \"/app/app/fid/eld_check_cli.py\", line 28, in main\n    result = asyncio.run(_eld_check(**params))\nTypeError: _eld_check() got an unexpected keyword argument 'uploadSessionToken'\n"
-}
-{
-  "code": 400,
-  "message": "算法调用失败: _fid_check() got an unexpected keyword argument 'uploadSessionToken'",
-  "traceback": "Traceback (most recent call last):\n  File \"/app/app/fid/fid_check_cli.py\", line 28, in main\n    result = asyncio.run(_fid_check(**params))\nTypeError: _fid_check() got an unexpected keyword argument 'uploadSessionToken'\n"
+  "message": "算法调用失败：dxf 文件解析遇到错误：Invalid DXF attribute \"name\" for entity SEQEND",
+  "traceback": "Traceback (most recent call last):\n  File \"/app/app/fid/api_util.py\", line 635, in _fid_check\n    current_equipment_list = fid_parse_dxf(file_path, filename=filename)\n  File \"/app/app/fid/fid_parser.py\", line 185, in fid_parse_dxf\n    equipments = _fid_parse_via_iterdxf(str(path), filename)\n  File \"/app/app/fid/fid_parser.py\", line 155, in _fid_parse_via_iterdxf\n    _process_insert_entity(entity, filename, equipments, id_unique, doc=None)\n  File \"/app/app/fid/fid_parser.py\", line 102, in _process_insert_entity\n    block_name = entity.dxf.name\n  File \"/usr/local/lib/python3.10/dist-packages/ezdxf/entities/dxfns.py\", line 130, in __getattr__\n    raise const.DXFAttributeError(\nezdxf.lldxf.const.DXFAttributeError: Invalid DXF attribute \"name\" for entity SEQEND\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/app/app/fid/api_util.py\", line 640, in _fid_check\n    raise Exception(f'dxf 文件解析遇到错误：{str(dxf_exception)}')\nException: dxf 文件解析遇到错误：Invalid DXF attribute \"name\" for entity SEQEND\n"
 }
