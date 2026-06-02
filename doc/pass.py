@@ -1,206 +1,219 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-手动测试 FID 校验回调接口 POST equipment/fidFile/onFidParseComplete。
-
-用法（项目根目录）::
-
-    python tests/test_post_onFidParseComplate.py
-    python tests/test_post_onFidParseComplate.py --url http://10.22.64.89:8080/efms/equipment/fidFile/onFidParseComplete
-    python tests/test_post_onFidParseComplate.py --result doc/result.json --token test-token --x-fab-ds fab1
-    python tests/test_post_onFidParseComplate.py --scenario error
-"""
-from __future__ import annotations
-
-import argparse
+# dxf_parser.py
+import gc
 import json
+import mmap
+import datetime
+from pathlib import Path
+
+import ezdxf
+from typing import List
+from app.fid.models import Equipment, FileInfo
+
+from app.fid.utils.check_device import check_which_device
+
 import sys
 from pathlib import Path
-from typing import Any
 
-import requests
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from app.config.fid_config import build_fid_callback_url
-from app.util import format_parse_callback_payload
+# 将项目根目录加入 Python 路径（当前文件: app/fid/eld_check_cli.py -> 上两级到根目录）
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 
-def _sample_success_result() -> dict[str, Any]:
-    return {
-        "code": 200,
-        "message": "调用成功",
-        "success": True,
-        "data": {
-            "interfaces": [
-                {
-                    "uniCode": "D-IPA;FAB1F2;WS03;04",
-                    "operation": "update",
-                    "detail": "测试变更项",
-                    "diffContent": [],
-                }
-            ],
-            "field": [],
-            "interfaces_add": 0,
-            "interfaces_update": 1,
-            "interfaces_delete": 0,
-            "fields_add": 0,
-            "fields_update": 0,
-            "fields_delete": 0,
-            "interfaces_num": 1,
-            "field_nums": 0,
-        },
-    }
+#from app.config.fid_config import FID_REQUIRED_FIELDS
+
+current_file = Path(__file__).resolve()
+root_dir = current_file.parent
+while root_dir.name != 'app' and root_dir.parent != root_dir:
+    root_dir = root_dir.parent
+
+if root_dir.name == 'app':
+    project_root = root_dir.parent
+else:
+    #  fallback: 假设就在上一级
+    project_root = current_file.parent.parent
+
+# 3. 将项目根目录加入 Python 搜索路径
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+# 4. 现在可以直接导入，去掉 'app.config' 前缀
+from app.config.fid_config import FID_REQUIRED_FIELDS
 
 
-def _sample_error_result() -> dict[str, Any]:
-    return {
-        "code": 200,
-        "message": "调用成功",
-        "success": False,
-        "data": {
-            "interfaces": [
-                {
-                    "uniCode": "D-IPA;FAB1F2;WS03;04",
-                    "operation": "update",
-                    "errors": [
-                        {
-                            "errorName": "必填项缺失",
-                            "errorType": "error",
-                            "errorDescription": "测试错误项",
-                        }
-                    ],
-                }
-            ],
-            "field": [],
-            "interfaces_add": 0,
-            "interfaces_update": 0,
-            "interfaces_delete": 0,
-            "fields_add": 0,
-            "fields_update": 0,
-            "fields_delete": 0,
-            "interfaces_num": 1,
-            "field_nums": 0,
-        },
-    }
-
-
-def build_fid_callback_payload(
-    result: dict[str, Any],
-    *,
-    upload_session_token: str = "test-upload-session-token",
-    x_fab_ds: str = "",
-) -> dict[str, Any]:
-    """与线上回调一致：内部校验结果 → 统一回调 body。"""
-    return format_parse_callback_payload(
-        result,
-        upload_session_token,
-        module="FID",
-        x_fab_ds=x_fab_ds,
-    )
-
-
-def post_fid_parse_complete_callback(
-    payload: dict[str, Any],
-    *,
-    url: str | None = None,
-    x_fab_ds: str = "",
-    timeout: int = 120,
-) -> requests.Response:
+def read_dxf_streaming(dxf_path: str | Path, encoding: str | None = None) -> ezdxf.document.Drawing:
     """
-    POST FID 校验完成回调。
+    流式读取 DXF，降低读盘阶段的峰值内存。
 
-    :param payload: 回调 JSON body（建议使用 ``build_fid_callback_payload`` 生成）
-    :param url: 回调地址，默认读取 ``global_config/env`` 中 FID 配置
-    :param x_fab_ds: 写入请求头 ``X-Fab-Ds``（body 无该字段时补充）
-    :param timeout: 请求超时秒数
+    - ASCII/文本 DXF：通过文件句柄 + ``ascii_tags_loader`` 按行解析，避免 ``read()`` 整文件进内存
+    - 二进制 DXF：``mmap`` 映射文件后交给 ``binary_tags_loader``，避免 ``fp.read()`` 再复制一份
+
+    注意：ezdxf 加载后仍会在内存中构建完整 ``Drawing``/实体库；
+    800M 级文件仍需足够 RAM，但可避免「文件体积 × 2」的读入开销。
     """
-    callback_url = (url or build_fid_callback_url()).strip()
-    if not callback_url:
-        raise ValueError("回调 URL 为空，请配置 sync_base_url / fid_sync_callback_url 或使用 --url")
+    from ezdxf.document import Drawing
+    from ezdxf.filemanagement import dxf_file_info
+    from ezdxf.lldxf.tagger import binary_tags_loader
+    from ezdxf.lldxf.validator import is_binary_dxf_file, is_dxf_file
+    from ezdxf.tools.codepage import is_supported_encoding
 
-    header_fab_ds = x_fab_ds or str(payload.get("X-Fab-Ds") or "")
-    headers = {"Content-Type": "application/json"}
-    if header_fab_ds:
-        headers["X-Fab-Ds"] = header_fab_ds
-        payload.setdefault("X-Fab-Ds", header_fab_ds)
+    path = Path(dxf_path)
+    path_str = str(path)
 
-    return requests.post(callback_url, json=payload, headers=headers, timeout=timeout)
+    if is_binary_dxf_file(path_str):
+        with open(path_str, "rb") as fp:
+            with mmap.mmap(fp.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                doc = Drawing.load(binary_tags_loader(mm))
+        doc.filename = path_str
+        return doc
+
+    if not is_dxf_file(path_str):
+        raise IOError(f"不是有效的 DXF 文件: {path_str}")
+
+    info = dxf_file_info(path_str)
+    text_encoding = encoding or info.encoding
+    with open(path_str, mode="rt", encoding=text_encoding, errors="surrogateescape") as fp:
+        doc = Drawing.read(fp)
+    doc.filename = path_str
+    if encoding is not None and is_supported_encoding(encoding):
+        doc.encoding = encoding
+    return doc
 
 
-def _load_result_file(path: Path) -> dict[str, Any]:
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+def clean_unicode_text(text: str) -> str:
+    """
+    移除字符串中的无效 Unicode 代理字符 (Surrogates)，防止 UTF-8 编码报错。
+    范围：\ud800 - \udfff
+    """
+    if not isinstance(text, str):
+        return text
+    # 方法：通过 encode/decode 忽略错误，或者手动过滤
+    # 这里使用手动过滤保留其他字符
+    return "".join(char for char in text if not ('\ud800' <= char <= '\udfff'))
 
+def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> List[Equipment]:
+    """
+    解析 DXF 文件，提取所有包含 'TOOL_ID' 属性的 INSERT 块（设备）。
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="测试 POST FID 回调 onFidParseComplete")
-    parser.add_argument(
-        "--url",
-        default="",
-        help="回调完整 URL，默认 env 中 sync_base_url + fid_sync_callback_url",
-    )
-    parser.add_argument("--token", default="test-upload-session-token", help="uploadSessionToken")
-    parser.add_argument("--x-fab-ds", default="", help="X-Fab-Ds")
-    parser.add_argument(
-        "--result",
-        type=Path,
-        default=None,
-        help="内部校验结果 JSON（如 doc/result.json），将自动转为回调 body",
-    )
-    parser.add_argument(
-        "--payload",
-        type=Path,
-        default=None,
-        help="直接作为回调 body 的 JSON 文件（跳过 format_parse_callback_payload）",
-    )
-    parser.add_argument(
-        "--scenario",
-        choices=("success", "error"),
-        default="success",
-        help="未指定 --result/--payload 时使用的内置样例",
-    )
-    parser.add_argument("--timeout", type=int, default=120)
-    args = parser.parse_args()
-
-    if args.payload:
-        payload = _load_result_file(args.payload)
-    elif args.result:
-        internal = _load_result_file(args.result)
-        payload = build_fid_callback_payload(
-            internal,
-            upload_session_token=args.token,
-            x_fab_ds=args.x_fab_ds,
-        )
-    else:
-        internal = _sample_success_result() if args.scenario == "success" else _sample_error_result()
-        payload = build_fid_callback_payload(
-            internal,
-            upload_session_token=args.token,
-            x_fab_ds=args.x_fab_ds,
-        )
-
-    callback_url = args.url or build_fid_callback_url()
-    print(f"POST {callback_url}")
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    :param dxf_path: DXF 文件路径
+    :param file_info: 文件信息（用于绑定到 Equipment）
+    :return: Equipment 列表
+    """
+    start_time = datetime.datetime.now()
 
     try:
-        response = post_fid_parse_complete_callback(
-            payload,
-            url=callback_url or None,
-            x_fab_ds=args.x_fab_ds,
-            timeout=args.timeout,
-        )
-    except requests.RequestException as exc:
-        print(f"请求失败: {exc}", file=sys.stderr)
-        return 1
+        doc = read_dxf_streaming(dxf_path)
+    except IOError:
+        raise ValueError(f"无法读取 DXF 文件: {dxf_path}")
+    except ezdxf.DXFStructureError:
+        raise ValueError(f"DXF 文件结构损坏: {dxf_path}")
+    print(f"读取文件耗时： {datetime.datetime.now() - start_time}")
 
-    print(f"\nHTTP {response.status_code}")
-    print(response.text[:2000])
-    return 0 if response.ok else 1
+    msp = doc.modelspace()
+    # equipments: List[Equipment] = []
+    equipments = {
+        k: [] for k in FID_REQUIRED_FIELDS
+    }
+
+    name = set()
+    for entity_i, entity in enumerate(msp.query("INSERT")):
+        # if str(entity.dxf.layer) not in ['PC-A-HF-100TO1']:
+        #     print(f"{str(entity.dxf.layer)} 不在目标layers中 {'PC-A-HF-100TO1'}")
+        #     continue
+
+        # 获取块定义（用于检查是否含属性）
+        block_name = entity.dxf.name
+        if block_name not in doc.blocks:
+            continue
+
+        # 提取所有属性（ATTRIB）
+        attrs = {}
+        for attr in entity.attribs:
+
+            if hasattr(attr, 'dxf') and hasattr(attr.dxf, 'tag') and hasattr(attr.dxf, 'text'):
+                tag = str(attr.dxf.tag).strip().upper()
+                #text = str(attr.dxf.text).strip() if attr.dxf.text else ''
+
+                raw_text = attr.dxf.text if attr.dxf.text else ''
+                text = clean_unicode_text(str(raw_text).strip())
+
+                attrs[tag] = text
+
+        # print(json.dumps(attrs, ensure_ascii=False, indent=4))
+
+        if "REMARK1" in attrs:
+            continue
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+        id_unique = set()
+        # continue
+        # 构建 Equipment 对象
+        if len(attrs) > 0:
+            # print(block_name)
+            # 固有属性
+            attrs['cad_block_name'] = block_name
+            attrs['layer'] = entity.dxf.layer
+            attrs['angle'] = float(entity.dxf.rotation) if hasattr(entity.dxf, 'rotation') else None
+            attrs['true_color'] = int(entity.dxf.color) if hasattr(entity.dxf, 'color') else None
+            attrs['insert_point_x'] = round(float(entity.dxf.insert.x), 4)
+            attrs['insert_point_y'] = round(float(entity.dxf.insert.y), 4)
+            attrs['insert_point_z'] = round(float(entity.dxf.insert.z), 4)
+            attrs['center_point_x'] = round(float(entity.dxf.insert.x), 4)
+            attrs['center_point_y'] = round(float(entity.dxf.insert.y), 4)
+            attrs['cad_block_id'] = str(entity.dxf.handle)
+
+            # print(attrs)
+            # equipments.append(attrs)
+            device = check_which_device(attrs, filename)
+
+            if device == 'TAKEOFF':
+                attrs['distribution_box'] = False
+            else:
+                attrs['distribution_box'] = True
+
+
+            attrs = {k.upper(): v for k, v in attrs.items()}
+
+            if device is None:
+                print(f"device无法识别{attrs=}")
+                continue
+            if 'ID' not in attrs and 'INTERFACE_CODE' not in attrs and 'ID_SHORT' not in attrs:
+                #print(f"ID不存在{attrs=}")
+                continue
+
+            equipments[device].append(attrs)
+
+            if f"{attrs.get('INTERFACE_CODE') or  attrs.get('ID_SHORT') or attrs.get('ID')}_{attrs['CAD_BLOCK_ID']}" not in id_unique:
+                id_unique.add(f"{attrs.get('INTERFACE_CODE') or  attrs.get('ID_SHORT') or attrs.get('ID')}_{attrs['CAD_BLOCK_ID']}")
+            else:
+                print(f"解析遇到相同 id", f"{attrs.get('INTERFACE_CODE') or  attrs.get('ID_SHORT') or attrs.get('ID')}_{attrs['CAD_BLOCK_ID']}")
+                raise Exception
+    print(json.dumps({k: len(v) for k, v in equipments.items()}, ensure_ascii=False, indent=4))
+    print(f"解析文件耗时： {datetime.datetime.now() - start_time}")
+
+    del doc
+    gc.collect()
+    return equipments
+
+
+if __name__ == '__main__':
+    from pathlib import Path
+    from app.fid.utils.parse_block_attributes import parse_block_attributes
+    import time
+    # for file in Path('/data/new_merge_interface/app/fid_data').glob('*'):
+    for file in Path('doc/').glob('*'):
+        print(file)
+        start_time1 = time.time()
+        equipments = fid_parse_dxf(file, Path(file).name)
+        print(time.time() - start_time1)
+        start_time2 = time.time()
+        for device in equipments:
+            for e in equipments[device]:
+
+                if e.get('CAD_BLOCK_ID') == "18DBF2":
+                    print(f"*******************")
+                    print(e)
+                    
+                # result = parse_block_attributes(e, Path(file).name)
+                # for r in result:
+                #     print(r)
+        print('接口解析耗时', time.time() - start_time2,  time.time() - start_time1)
