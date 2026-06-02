@@ -41,13 +41,14 @@ import chardet
 def clean_unicode_text(text: str) -> str:
     """
     移除字符串中的无效 Unicode 代理字符 (Surrogates)，防止 UTF-8 编码报错。
-    范围：\ud800 - \udfff
+    范围：U+D800 - U+DFFF
     """
     if not isinstance(text, str):
         return text
-    # 方法：通过 encode/decode 忽略错误，或者手动过滤
-    # 这里使用手动过滤保留其他字符
-    return "".join(char for char in text if not ('\ud800' <= char <= '\udfff'))
+    # 大多数文本不包含代理字符，先做一次快速检查，避免总是构造新字符串。
+    if not any(0xD800 <= ord(ch) <= 0xDFFF for ch in text):
+        return text
+    return "".join(ch for ch in text if not (0xD800 <= ord(ch) <= 0xDFFF))
 
 def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> List[Equipment]:
     """
@@ -112,20 +113,12 @@ def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> L
         k: [] for k in FID_REQUIRED_FIELDS
     }
 
-    name = set()
-    for entity_i, entity in enumerate(msp):
+    id_unique = set()
+    for entity_i, entity in enumerate(msp.query("INSERT")):
         # continue
         # print(entity.dxftype())
 
         #print(f"解析第{entity_i + 1}个实体")
-
-        # 只处理 INSERT（块引用）
-        if entity.dxftype() != "INSERT":
-            continue
-
-        # if str(entity.dxf.layer) not in ['PC-A-HF-100TO1']:
-        #     print(f"{str(entity.dxf.layer)} 不在目标layers中 {'PC-A-HF-100TO1'}")
-        #     continue
 
         # 获取块定义（用于检查是否含属性）
         block_name = entity.dxf.name
@@ -135,15 +128,10 @@ def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> L
         # 提取所有属性（ATTRIB）
         attrs = {}
         for attr in entity.attribs:
-
-            if hasattr(attr, 'dxf') and hasattr(attr.dxf, 'tag') and hasattr(attr.dxf, 'text'):
-                tag = str(attr.dxf.tag).strip().upper()
-                #text = str(attr.dxf.text).strip() if attr.dxf.text else ''
-
-                raw_text = attr.dxf.text if attr.dxf.text else ''
-                text = clean_unicode_text(str(raw_text).strip())
-
-                attrs[tag] = text
+            # ATTRIB 实体默认都有 dxf.tag / dxf.text，直接访问减少反射判断开销
+            tag = str(attr.dxf.tag).strip().upper()
+            raw_text = attr.dxf.text if attr.dxf.text else ''
+            attrs[tag] = clean_unicode_text(str(raw_text).strip())
 
         # print(json.dumps(attrs, ensure_ascii=False, indent=4))
 
@@ -151,8 +139,6 @@ def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> L
             continue
 
 
-        id_unique = set()
-        # continue
         # 构建 Equipment 对象
         if len(attrs) > 0:
             # print(block_name)
@@ -161,11 +147,13 @@ def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> L
             attrs['layer'] = entity.dxf.layer
             attrs['angle'] = float(entity.dxf.rotation) if hasattr(entity.dxf, 'rotation') else None
             attrs['true_color'] = int(entity.dxf.color) if hasattr(entity.dxf, 'color') else None
-            attrs['insert_point_x'] = round(float(entity.dxf.insert.x), 4)
-            attrs['insert_point_y'] = round(float(entity.dxf.insert.y), 4)
+            insert_x = round(float(entity.dxf.insert.x), 4)
+            insert_y = round(float(entity.dxf.insert.y), 4)
+            attrs['insert_point_x'] = insert_x
+            attrs['insert_point_y'] = insert_y
             attrs['insert_point_z'] = round(float(entity.dxf.insert.z), 4)
-            attrs['center_point_x'] = round(float(entity.dxf.insert.x), 4)
-            attrs['center_point_y'] = round(float(entity.dxf.insert.y), 4)
+            attrs['center_point_x'] = insert_x
+            attrs['center_point_y'] = insert_y
             attrs['cad_block_id'] = str(entity.dxf.handle)
 
             # print(attrs)
@@ -187,12 +175,12 @@ def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> L
                 #print(f"ID不存在{attrs=}")
                 continue
 
-            equipments[device].append(attrs)
-
-            if f"{attrs.get('INTERFACE_CODE') or  attrs.get('ID_SHORT') or attrs.get('ID')}_{attrs['CAD_BLOCK_ID']}" not in id_unique:
-                id_unique.add(f"{attrs.get('INTERFACE_CODE') or  attrs.get('ID_SHORT') or attrs.get('ID')}_{attrs['CAD_BLOCK_ID']}")
+            equipment_unique_id = f"{attrs.get('INTERFACE_CODE') or attrs.get('ID_SHORT') or attrs.get('ID')}_{attrs['CAD_BLOCK_ID']}"
+            if equipment_unique_id not in id_unique:
+                id_unique.add(equipment_unique_id)
+                equipments[device].append(attrs)
             else:
-                print(f"解析遇到相同 id", f"{attrs.get('INTERFACE_CODE') or  attrs.get('ID_SHORT') or attrs.get('ID')}_{attrs['CAD_BLOCK_ID']}")
+                print(f"解析遇到相同 id", equipment_unique_id)
                 raise Exception
     print(json.dumps({k: len(v) for k, v in equipments.items()}, ensure_ascii=False, indent=4))
     print(f"解析文件耗时： {datetime.datetime.now() - start_time}")
