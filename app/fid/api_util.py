@@ -714,9 +714,14 @@ async def _fid_check(
                 equipments = parse_block_attributes(equipment, filename)
                 equipments = [{k.upper(): v for _equipment in equipments for k, v in _equipment.items()}]
 
-                field_code = equipments[0].get('FIELD')
-                # 注意：这里的 iloc 查询在循环中非常慢，如果数据量大，这里是主要瓶颈
-                result_pd = field_pd[field_pd['FIELD.code'] == field_code]
+                # 优先按 uni_code 精确匹配，避免 FIELD.code 重复导致取错 field_id
+                field_uni_code = equipments[0].get('FIELD_CODE')
+                if field_uni_code:
+                    result_pd = field_pd[field_pd['FIELD.uni_code'] == field_uni_code]
+                else:
+                    # 兜底兼容：极少数历史数据可能没有 FIELD_CODE
+                    field_code = equipments[0].get('FIELD')
+                    result_pd = field_pd[field_pd['FIELD.code'] == field_code]
                 subsystem_id_df = subsystem_pd[subsystem_pd['SUBSYSTEM.code'] == equipments[0].get('SUB_SYSTEM')]
 
                 if not result_pd.empty:
@@ -1097,10 +1102,12 @@ async def _fid_check(
                             interface_id = None
 
                     if result.operation == 'add':
-                        field_name = result.equipment[1]['FIELD']
-                        _field_pd = field_pd[field_pd['FIELD.code'] == field_name]
-                        if not _field_pd.empty:
-                            field_id = _field_pd.iloc[0]['FIELD.id']
+                        # add 场景按 uni_code 精确匹配，避免 FIELD.code 重复导致取错 field_id
+                        field_uni_code = equipment.get('FIELD_CODE')
+                        if field_uni_code:
+                            _field_pd = field_pd[field_pd['FIELD.uni_code'] == field_uni_code]
+                            if not _field_pd.empty:
+                                field_id = _field_pd.iloc[0]['FIELD.id']
 
                     if result.operation == 'delete':
                         search_id = parse_search_id(result, system)
