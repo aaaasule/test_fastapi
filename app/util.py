@@ -134,6 +134,10 @@ def format_parse_callback_payload(
             "errors": [...],
             "successes": [...],
         }
+
+    ``success`` 语义：
+    - 业务级（``code != 400``）：恒为 ``True``；是否校验通过看 ``errors`` / ``errorMessage``。
+    - 系统级（``code == 400`` 或未捕获异常）：为 ``False``。
     """
     code = int(result.get("code") or 200)
     message = str(result.get("message") or "").strip()
@@ -160,23 +164,16 @@ def format_parse_callback_payload(
     else:
         errors, successes = [], []
 
-    if old_success is False or errors:
-        return _attach_callback_context(
-            {
-                "success": False,
-                "errorMessage": message or "校验失败",
-                "errors": errors if errors else (list(data) if isinstance(data, list) else []),
-                "successes": successes,
-            },
-            upload_session_token,
-            x_fab_ds=x_fab_ds,
-        )
-
+    has_business_errors = old_success is False or bool(errors)
     return _attach_callback_context(
         {
             "success": True,
-            "errorMessage": message or "调用成功",
-            "errors": [],
+            "errorMessage": (message or "校验失败") if has_business_errors else (message or "调用成功"),
+            "errors": (
+                errors
+                if errors
+                else (list(data) if has_business_errors and isinstance(data, list) else [])
+            ),
             "successes": successes,
         },
         upload_session_token,
