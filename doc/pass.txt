@@ -1,3 +1,1 @@
-	1. 错误性/差异性报告添加一列体现I/O信息（前端直接增加一列显示: inOutCode ）
-	2. 错误性/差异性报告添加一列标识用于区分 interface、field 
-	3. 差异性报告增加一列,点位为更新、删除时，判断点位是否被派点，若为派点状态，将机台id体现在差异报告中;(入参添加是否派点字段:isAssigned != 3 , equipmentCode)
+logger.info("[%s] payload keys: %s", log_tag, list(payload.keys()))
