@@ -13,21 +13,6 @@ import requests
 from app.config import logger
 from app.config.fid_config import SYNC_BASE_URL
 
-_FID_ROW_KEYS = ("interfaces", "field")
-_FID_META_KEYS = frozenset(
-    {
-        "interfaces_add",
-        "interfaces_update",
-        "interfaces_delete",
-        "fields_add",
-        "fields_update",
-        "fields_delete",
-        "interfaces_num",
-        "field_nums",
-    }
-)
-
-
 def build_sync_callback_url(callback_path: str) -> str:
     """拼接 ``sync_base_url`` 与回调相对路径。"""
     base = (SYNC_BASE_URL or "").rstrip("/")
@@ -82,18 +67,34 @@ def _split_list_rows(data: list[Any]) -> tuple[list[Any], list[Any]]:
     return errors, successes
 
 
-def _split_fid_rows(data: dict[str, Any]) -> tuple[list[Any], list[Any]]:
-    errors: list[Any] = []
-    successes: list[Any] = []
-    for key in _FID_ROW_KEYS:
-        for item in data.get(key) or []:
-            if not isinstance(item, dict):
-                continue
-            if _item_has_errors(item):
-                errors.append(item)
-            else:
-                successes.append(item)
-    return errors, successes
+def _split_fid_rows(data: dict[str, Any]) -> dict[str, list[Any]]:
+    interface_errors: list[Any] = []
+    interface_successes: list[Any] = []
+    field_errors: list[Any] = []
+    field_successes: list[Any] = []
+
+    for item in data.get("interfaces") or []:
+        if not isinstance(item, dict):
+            continue
+        if _item_has_errors(item):
+            interface_errors.append(item)
+        else:
+            interface_successes.append(item)
+
+    for item in data.get("field") or []:
+        if not isinstance(item, dict):
+            continue
+        if _item_has_errors(item):
+            field_errors.append(item)
+        else:
+            field_successes.append(item)
+
+    return {
+        "interfaceErrors": interface_errors,
+        "fieldErrors": field_errors,
+        "interfaceSuccesses": interface_successes,
+        "fieldSuccesses": field_successes,
+    }
 
 
 def _system_error_rows(result: dict[str, Any]) -> list[Any]:
@@ -117,6 +118,15 @@ def _attach_callback_context(
     return out
 
 
+def _empty_fid_callback_rows() -> dict[str, list[Any]]:
+    return {
+        "interfaceErrors": [],
+        "fieldErrors": [],
+        "interfaceSuccesses": [],
+        "fieldSuccesses": [],
+    }
+
+
 def format_parse_callback_payload(
     result: dict[str, Any],
     upload_session_token: str,
@@ -125,7 +135,21 @@ def format_parse_callback_payload(
     x_fab_ds: str = "",
 ) -> dict[str, Any]:
     """
-    将各模块内部校验结果转为统一回调结构::
+    将各模块内部校验结果转为统一回调结构。
+
+    FID 模块::
+
+        {
+            "uploadSessionToken": "...",
+            "success": true/false,
+            "errorMessage": "...",
+            "interfaceErrors": [...],
+            "fieldErrors": [...],
+            "interfaceSuccesses": [...],
+            "fieldSuccesses": [...],
+        }
+
+    其他模块（ELD/SLD）::
 
         {
             "uploadSessionToken": "...",
@@ -136,15 +160,29 @@ def format_parse_callback_payload(
         }
 
     ``success`` 语义：
-    - 业务级（``code != 400``）：恒为 ``True``；是否校验通过看 ``errors`` / ``errorMessage``。
+    - 业务级（``code != 400``）：恒为 ``True``；是否校验通过看错误列表 / ``errorMessage``。
     - 系统级（``code == 400`` 或未捕获异常）：为 ``False``。
     """
     code = int(result.get("code") or 200)
     message = str(result.get("message") or "").strip()
     data = result.get("data")
     old_success = result.get("success")
+    module_upper = (module or "SLD").upper()
+    is_fid = module_upper == "FID"
 
     if code == 400 or (old_success is None and result.get("traceback")):
+        if is_fid:
+            fid_rows = _empty_fid_callback_rows()
+            fid_rows["interfaceErrors"] = _system_error_rows(result)
+            return _attach_callback_context(
+                {
+                    "success": False,
+                    "errorMessage": message or "算法调用失败",
+                    **fid_rows,
+                },
+                upload_session_token,
+                x_fab_ds=x_fab_ds,
+            )
         return _attach_callback_context(
             {
                 "success": False,
@@ -156,10 +194,24 @@ def format_parse_callback_payload(
             x_fab_ds=x_fab_ds,
         )
 
-    module_upper = (module or "SLD").upper()
-    if module_upper == "FID" and isinstance(data, dict):
-        errors, successes = _split_fid_rows(data)
-    elif isinstance(data, list):
+    if is_fid and isinstance(data, dict):
+        fid_rows = _split_fid_rows(data)
+        has_business_errors = (
+            old_success is False
+            or bool(fid_rows["interfaceErrors"])
+            or bool(fid_rows["fieldErrors"])
+        )
+        return _attach_callback_context(
+            {
+                "success": True,
+                "errorMessage": (message or "校验失败") if has_business_errors else (message or "调用成功"),
+                **fid_rows,
+            },
+            upload_session_token,
+            x_fab_ds=x_fab_ds,
+        )
+
+    if isinstance(data, list):
         errors, successes = _split_list_rows(data)
     else:
         errors, successes = [], []
