@@ -1,222 +1,309 @@
-# dxf_parser.py
-import gc
-import json
-import mmap
-import os
-import datetime
-import sys
-from pathlib import Path
-from typing import Any, Iterator, List
+# -*- coding: utf-8 -*-
+"""跨模块通用工具：异步校验立即响应与结果回调。"""
+from __future__ import annotations
 
-import ezdxf
-from ezdxf.addons import iterdxf
-from ezdxf.lldxf.validator import is_binary_dxf_file, is_dxf_file
+import asyncio
+import traceback
+from collections.abc import Callable
+from functools import partial
+from typing import Any
 
-from app.fid.models import Equipment, FileInfo
-from app.fid.utils.check_device import check_which_device
+import requests
 
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(project_root))
+from app.config import logger
+from app.config.fid_config import SYNC_BASE_URL
 
-current_file = Path(__file__).resolve()
-root_dir = current_file.parent
-while root_dir.name != "app" and root_dir.parent != root_dir:
-    root_dir = root_dir.parent
-
-if root_dir.name == "app":
-    project_root = root_dir.parent
-else:
-    project_root = current_file.parent.parent
-
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
-from app.config.fid_config import FID_REQUIRED_FIELDS
-
-# 设为 1 时强制完整加载 Drawing（兼容需 doc.blocks 的场景）
-ENV_FORCE_FULL_DXF_LOAD = "FID_DXF_USE_FULL_LOAD"
+def build_sync_callback_url(callback_path: str) -> str:
+    """拼接 ``sync_base_url`` 与回调相对路径。"""
+    base = (SYNC_BASE_URL or "").rstrip("/")
+    path = (callback_path or "").strip().strip('"').strip("'").lstrip("/")
+    if not base or not path:
+        return ""
+    return f"{base}/{path}"
 
 
-def read_dxf_streaming(dxf_path: str | Path, encoding: str | None = None) -> ezdxf.document.Drawing:
-    """完整加载 DXF（二进制用 mmap）。用于 iterdxf 不可用时的回退。"""
-    from ezdxf.document import Drawing
-    from ezdxf.filemanagement import dxf_file_info
-    from ezdxf.lldxf.tagger import binary_tags_loader
-    from ezdxf.tools.codepage import is_supported_encoding
-
-    path = Path(dxf_path)
-    path_str = str(path)
-
-    if is_binary_dxf_file(path_str):
-        with open(path_str, "rb") as fp:
-            with mmap.mmap(fp.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                doc = Drawing.load(binary_tags_loader(mm))
-        doc.filename = path_str
-        return doc
-
-    if not is_dxf_file(path_str):
-        raise IOError(f"不是有效的 DXF 文件: {path_str}")
-
-    info = dxf_file_info(path_str)
-    text_encoding = encoding or info.encoding
-    with open(path_str, mode="rt", encoding=text_encoding, errors="surrogateescape") as fp:
-        doc = Drawing.read(fp)
-    doc.filename = path_str
-    if encoding is not None and is_supported_encoding(encoding):
-        doc.encoding = encoding
-    return doc
-
-
-def can_use_iterdxf(dxf_path: str | Path) -> bool:
-    """iterdxf 仅适用于可 seek 的 ASCII/文本 DXF。"""
-    path_str = str(Path(dxf_path))
-    if os.environ.get(ENV_FORCE_FULL_DXF_LOAD, "").strip() in ("1", "true", "yes"):
-        return False
-    return is_dxf_file(path_str) and not is_binary_dxf_file(path_str)
-
-
-def clean_unicode_text(text: str) -> str:
-    if not isinstance(text, str):
-        return text
-    return "".join(char for char in text if not ("\ud800" <= char <= "\udfff"))
-
-
-def _extract_insert_attrs(entity: Any) -> dict[str, Any]:
-    attrs: dict[str, Any] = {}
-    for attr in entity.attribs:
-        if hasattr(attr, "dxf") and hasattr(attr.dxf, "tag") and hasattr(attr.dxf, "text"):
-            tag = str(attr.dxf.tag).strip().upper()
-            raw_text = attr.dxf.text if attr.dxf.text else ""
-            attrs[tag] = clean_unicode_text(str(raw_text).strip())
-    return attrs
-
-
-def _process_insert_entity(
-    entity: Any,
-    filename: str,
-    equipments: dict[str, list],
-    id_unique: set[str],
+def make_async_accept_response(
+    upload_session_token: str,
     *,
-    doc: ezdxf.document.Drawing | None = None,
-) -> None:
-    # iterdxf 在 types 含 INSERT 时会一并加载 SEQEND/ATTRIB，孤立 SEQEND 也可能被 yield
-    if entity.dxftype() != "INSERT":
-        return
-
-    block_name = entity.dxf.name
-    if doc is not None and block_name not in doc.blocks:
-        return
-
-    attrs = _extract_insert_attrs(entity)
-    if "REMARK1" in attrs or not attrs:
-        return
-
-    attrs["cad_block_name"] = block_name
-    attrs["layer"] = entity.dxf.layer
-    attrs["angle"] = float(entity.dxf.rotation) if hasattr(entity.dxf, "rotation") else None
-    attrs["true_color"] = int(entity.dxf.color) if hasattr(entity.dxf, "color") else None
-    attrs["insert_point_x"] = round(float(entity.dxf.insert.x), 4)
-    attrs["insert_point_y"] = round(float(entity.dxf.insert.y), 4)
-    attrs["insert_point_z"] = round(float(entity.dxf.insert.z), 4)
-    attrs["center_point_x"] = round(float(entity.dxf.insert.x), 4)
-    attrs["center_point_y"] = round(float(entity.dxf.insert.y), 4)
-    attrs["cad_block_id"] = str(entity.dxf.handle)
-
-    device = check_which_device(attrs, filename)
-    if device == "TAKEOFF":
-        attrs["distribution_box"] = False
-    else:
-        attrs["distribution_box"] = True
-
-    attrs = {k.upper(): v for k, v in attrs.items()}
-
-    if device is None:
-        print(f"device无法识别{attrs=}")
-        return
-    if "ID" not in attrs and "INTERFACE_CODE" not in attrs and "ID_SHORT" not in attrs:
-        return
-
-    unique_key = (
-        f"{attrs.get('INTERFACE_CODE') or attrs.get('ID_SHORT') or attrs.get('ID')}_"
-        f"{attrs['CAD_BLOCK_ID']}"
-    )
-    if unique_key in id_unique:
-        print("解析遇到相同 id", unique_key)
-        raise Exception(unique_key)
-    id_unique.add(unique_key)
-    equipments[device].append(attrs)
+    x_fab_ds: str = "",
+) -> dict[str, Any]:
+    payload = {
+        "code": 200,
+        "message": "请求已接收，校验处理中",
+        "success": True,
+        "uploadSessionToken": upload_session_token,
+    }
+    if x_fab_ds:
+        payload["X-Fab-Ds"] = x_fab_ds
+    return payload
 
 
-def _iter_inserts_iterdxf(dxf_path: str | Path) -> Iterator[Any]:
-    """仅解析 ENTITIES 中的 INSERT，不构建完整 Drawing。"""
-    for entity in iterdxf.modelspace(str(dxf_path), types=["INSERT"]):
-        if entity.dxftype() == "INSERT":
-            yield entity
+def make_task_error_response(message: str, *, detail: str | None = None) -> dict[str, Any]:
+    return {
+        "code": 400,
+        "message": message,
+        "success": False,
+        "data": [{"errors": [detail or message]}],
+    }
 
 
-def _fid_parse_via_iterdxf(dxf_path: str, filename: str) -> dict[str, list]:
-    equipments = {k: [] for k in FID_REQUIRED_FIELDS}
-    id_unique: set[str] = set()
-    for entity in _iter_inserts_iterdxf(dxf_path):
-        _process_insert_entity(entity, filename, equipments, id_unique, doc=None)
-    return equipments
+def _item_has_errors(item: dict[str, Any]) -> bool:
+    errs = item.get("errors")
+    if isinstance(errs, list):
+        return len(errs) > 0
+    return bool(errs)
 
 
-def _fid_parse_via_drawing(dxf_path: str, filename: str) -> dict[str, list]:
-    doc = read_dxf_streaming(dxf_path)
-    try:
-        equipments = {k: [] for k in FID_REQUIRED_FIELDS}
-        id_unique: set[str] = set()
-        for entity in doc.modelspace().query("INSERT"):
-            _process_insert_entity(entity, filename, equipments, id_unique, doc=doc)
-        return equipments
-    finally:
-        del doc
-        gc.collect()
-
-
-def fid_parse_dxf(dxf_path: str, filename: str, file_info: FileInfo = None) -> List[Equipment]:
-    """
-    解析 DXF，提取 INSERT 图块设备属性。
-
-    文本 DXF 默认使用 ``ezdxf.addons.iterdxf`` 单遍迭代（低内存、跳过大段非 INSERT 实体）；
-    二进制 DXF 或设置 ``FID_DXF_USE_FULL_LOAD=1`` 时回退为完整 ``Drawing`` 加载。
-    """
-    start_time = datetime.datetime.now()
-    path = Path(dxf_path)
-
-    try:
-        if can_use_iterdxf(path):
-            print("DXF 解析模式: iterdxf (仅 INSERT)")
-            try:
-                equipments = _fid_parse_via_iterdxf(str(path), filename)
-            except (ezdxf.DXFAttributeError, ezdxf.DXFStructureError) as iter_exc:
-                print(f"iterdxf 解析异常，回退完整 Drawing: {iter_exc}")
-                equipments = _fid_parse_via_drawing(str(path), filename)
+def _split_list_rows(data: list[Any]) -> tuple[list[Any], list[Any]]:
+    errors: list[Any] = []
+    successes: list[Any] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        if _item_has_errors(item):
+            errors.append(item)
         else:
-            print("DXF 解析模式: 完整 Drawing 加载")
-            equipments = _fid_parse_via_drawing(str(path), filename)
-    except IOError:
-        raise ValueError(f"无法读取 DXF 文件: {dxf_path}")
-    except ezdxf.DXFStructureError:
-        raise ValueError(f"DXF 文件结构损坏: {dxf_path}")
-
-    print(f"读取与解析耗时： {datetime.datetime.now() - start_time}")
-    print(json.dumps({k: len(v) for k, v in equipments.items()}, ensure_ascii=False, indent=4))
-    return equipments
+            successes.append(item)
+    return errors, successes
 
 
-if __name__ == "__main__":
-    import time
+def _split_fid_rows(data: dict[str, Any]) -> dict[str, list[Any]]:
+    interface_errors: list[Any] = []
+    interface_successes: list[Any] = []
+    field_errors: list[Any] = []
+    field_successes: list[Any] = []
 
-    for file in Path("doc/").glob("*"):
-        print(file)
-        start_time1 = time.time()
-        equipments = fid_parse_dxf(str(file), file.name)
-        print(time.time() - start_time1)
-        for device in equipments:
-            for e in equipments[device]:
-                if e.get("CAD_BLOCK_ID") == "18DBF2":
-                    print("*******************")
-                    print(e)
-        print("接口解析耗时", time.time() - start_time1)
+    for item in data.get("interfaces") or []:
+        if not isinstance(item, dict):
+            continue
+        if _item_has_errors(item):
+            interface_errors.append(item)
+        else:
+            interface_successes.append(item)
+
+    for item in data.get("field") or []:
+        if not isinstance(item, dict):
+            continue
+        if _item_has_errors(item):
+            field_errors.append(item)
+        else:
+            field_successes.append(item)
+
+    return {
+        "interfaceErrors": interface_errors,
+        "fieldErrors": field_errors,
+        "interfaceSuccesses": interface_successes,
+        "fieldSuccesses": field_successes,
+    }
+
+
+def _system_error_rows(result: dict[str, Any]) -> list[Any]:
+    data = result.get("data")
+    message = str(result.get("message") or "算法调用失败")
+    if isinstance(data, list) and data:
+        return list(data)
+    return [{"errors": [message]}]
+
+
+def _attach_callback_context(
+    payload: dict[str, Any],
+    upload_session_token: str,
+    *,
+    x_fab_ds: str = "",
+) -> dict[str, Any]:
+    out = dict(payload)
+    out["uploadSessionToken"] = upload_session_token
+    if x_fab_ds:
+        out["X-Fab-Ds"] = x_fab_ds
+    return out
+
+
+def _empty_fid_callback_rows() -> dict[str, list[Any]]:
+    return {
+        "interfaceErrors": [],
+        "fieldErrors": [],
+        "interfaceSuccesses": [],
+        "fieldSuccesses": [],
+    }
+
+
+def format_parse_callback_payload(
+    result: dict[str, Any],
+    upload_session_token: str,
+    *,
+    module: str = "SLD",
+    x_fab_ds: str = "",
+) -> dict[str, Any]:
+    """
+    将各模块内部校验结果转为统一回调结构。
+
+    FID 模块::
+
+        {
+            "uploadSessionToken": "...",
+            "success": true/false,
+            "errorMessage": "...",
+            "interfaceErrors": [...],
+            "fieldErrors": [...],
+            "interfaceSuccesses": [...],
+            "fieldSuccesses": [...],
+        }
+
+    其他模块（ELD/SLD）::
+
+        {
+            "uploadSessionToken": "...",
+            "success": true/false,
+            "errorMessage": "...",
+            "errors": [...],
+            "successes": [...],
+        }
+
+    ``success`` 语义：
+    - 业务级（``code != 400``）：恒为 ``True``；是否校验通过看错误列表 / ``errorMessage``。
+    - 系统级（``code == 400`` 或未捕获异常）：为 ``False``。
+    """
+    code = int(result.get("code") or 200)
+    message = str(result.get("message") or "").strip()
+    data = result.get("data")
+    old_success = result.get("success")
+    module_upper = (module or "SLD").upper()
+    is_fid = module_upper == "FID"
+
+    if code == 400 or (old_success is None and result.get("traceback")):
+        if is_fid:
+            fid_rows = _empty_fid_callback_rows()
+            fid_rows["interfaceErrors"] = _system_error_rows(result)
+            return _attach_callback_context(
+                {
+                    "success": False,
+                    "errorMessage": message or "算法调用失败",
+                    **fid_rows,
+                },
+                upload_session_token,
+                x_fab_ds=x_fab_ds,
+            )
+        return _attach_callback_context(
+            {
+                "success": False,
+                "errorMessage": message or "算法调用失败",
+                "errors": _system_error_rows(result),
+                "successes": [],
+            },
+            upload_session_token,
+            x_fab_ds=x_fab_ds,
+        )
+
+    if is_fid and isinstance(data, dict):
+        fid_rows = _split_fid_rows(data)
+        has_business_errors = (
+            old_success is False
+            or bool(fid_rows["interfaceErrors"])
+            or bool(fid_rows["fieldErrors"])
+        )
+        return _attach_callback_context(
+            {
+                "success": True,
+                "errorMessage": (message or "校验失败") if has_business_errors else (message or "调用成功"),
+                **fid_rows,
+            },
+            upload_session_token,
+            x_fab_ds=x_fab_ds,
+        )
+
+    if isinstance(data, list):
+        errors, successes = _split_list_rows(data)
+    else:
+        errors, successes = [], []
+
+    has_business_errors = old_success is False or bool(errors)
+    return _attach_callback_context(
+        {
+            "success": True,
+            "errorMessage": (message or "校验失败") if has_business_errors else (message or "调用成功"),
+            "errors": (
+                errors
+                if errors
+                else (list(data) if has_business_errors and isinstance(data, list) else [])
+            ),
+            "successes": successes,
+        },
+        upload_session_token,
+        x_fab_ds=x_fab_ds,
+    )
+
+
+def post_parse_callback_sync(
+    result: dict[str, Any],
+    upload_session_token: str,
+    callback_url: str,
+    *,
+    log_tag: str = "PARSE",
+    timeout: int = 120,
+    x_fab_ds: str = "",
+) -> None:
+    if not callback_url:
+        logger.error("[%s] 未配置回调地址 sync_base_url / *_sync_callback_url", log_tag)
+        return
+
+    payload = format_parse_callback_payload(
+        result,
+        upload_session_token,
+        module=log_tag,
+        x_fab_ds=x_fab_ds,
+    )
+    headers = {"X-Fab-Ds": x_fab_ds} if x_fab_ds else None
+    try:
+        response = requests.post(callback_url, json=payload, headers=headers, timeout=timeout)
+        logger.info(
+            "[%s] 回调完成 url=%s status=%s uploadSessionToken=%s X-Fab-Ds=%s success=%s",
+            log_tag,
+            callback_url,
+            response.status_code,
+            upload_session_token,
+            x_fab_ds,
+            payload.get("success"),
+        )
+        if response.status_code >= 400:
+            logger.error(
+                "[%s] 回调失败 status=%s body=%s",
+                log_tag,
+                response.status_code,
+                response.text[:500],
+            )
+    except Exception:
+        logger.exception(
+            "[%s] 回调请求异常 url=%s uploadSessionToken=%s",
+            log_tag,
+            callback_url,
+            upload_session_token,
+        )
+
+
+async def run_sync_task_with_callback(
+    sync_fn: Callable[[], dict[str, Any]],
+    upload_session_token: str,
+    callback_url: str,
+    *,
+    log_tag: str = "PARSE",
+    x_fab_ds: str = "",
+) -> None:
+    """在线程池中执行同步任务，完成后 POST 回调。"""
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(None, sync_fn)
+    except Exception as exc:
+        logger.error("[%s] 后台任务异常\n%s", log_tag, traceback.format_exc())
+        result = make_task_error_response(f"算法调用失败: {exc}", detail=str(exc))
+
+    await loop.run_in_executor(
+        None,
+        partial(
+            post_parse_callback_sync,
+            result,
+            upload_session_token,
+            callback_url,
+            log_tag=log_tag,
+            x_fab_ds=x_fab_ds,
+        ),
+    )
