@@ -146,6 +146,11 @@ def _is_cs_required_field(field: str) -> bool:
     return field_u == 'CS' or field_u.startswith('CS.')
 
 
+def _skip_io_presence_validation(device: str, field: str) -> bool:
+    """VMB_CHEMICAL：I/O 不校验 tag 是否存在，仅 tag 存在但为空时报「必填项未填写」。"""
+    return device == 'VMB_CHEMICAL' and str(field).upper().startswith('I/O')
+
+
 class FidRequiredFieldRule(BaseRule):
 
     eqp_type = 'TAKEOFF'
@@ -200,13 +205,17 @@ class FidRequiredFieldRule(BaseRule):
                     #     print(f"GASNAME {eq=}")
                     #     print(f"GASNAME {value=}")
 
-                    if value == None:
-                        missing.append(_key)
-                    if value == "":
-                        empty.append(_key)
+                    if _skip_io_presence_validation(device, field):
+                        if value is None or value == "":
+                            empty.append(_key)
+                    else:
+                        if value == None:
+                            missing.append(_key)
+                        if value == "":
+                            empty.append(_key)
 
 
-                if len(field_keys) == 0:
+                if len(field_keys) == 0 and not _skip_io_presence_validation(device, field):
                     critical_patterns_missing.append(field)
 
             if critical_patterns_missing:
