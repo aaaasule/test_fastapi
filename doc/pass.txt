@@ -1,3 +1,4 @@
-	1. 错误性/差异性报告添加一列体现I/O信息（前端直接增加一列显示: inOutCode ）
-	2. 错误性/差异性报告添加一列标识用于区分 interface、field 
-	3. 差异性报告增加一列,点位为更新、删除时，判断点位是否被派点，若为派点状态，将机台id体现在差异报告中;(入参添加是否派点字段:isAssigned != 3 , equipmentCode)
+2026-06-05 19:17:30 - backen-fastapi - INFO - [FID] payload keys: ['success', 'errorMessage', 'interfaceErrors', 'fieldErrors', 'interfaceSuccesses', 'fieldSuccesses', 'uploadSessionToken', 'X-Fab-Ds']
+2026-06-05 19:17:30 - backen-fastapi - INFO - [FID] payload 已写入 /app/app/temp_debug/callback_payload/fid_8f2f2dad-6a15-495c-a60d-9472ad803ee4_20260605_191730_231527.json
+2026-06-05 19:17:30 - backen-fastapi - INFO - [FID] 回调完成 url=http://10.22.64.89:8080/EFMS/system/fidFile/onFidParseComplete status=400 uploadSessionToken=8f2f2dad-6a15-495c-a60d-9472ad803ee4 X-Fab-Ds=ymtc-fab1 success=True
+2026-06-05 19:17:30 - backen-fastapi - ERROR - [FID] 回调失败 status=400 body={"message":"请求体 JSON 格式不正确","success":false,"code":400,"traceId":0}
