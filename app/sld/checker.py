@@ -20,6 +20,7 @@ from app.sld.validators import (
     run_change_checks,
     run_spec_checks,
 )
+from app.sld.format_utils import clearable_str
 from app.sld.validators.changes.common import build_history_index
 
 
@@ -328,8 +329,8 @@ def device_to_eqp_dict(d: SldDevice, *, default_building_level: str = "") -> Dic
         "groupCode": d.owner,
         "vendor": d.vendor,
         "model": d.model,
-        "bayLocation": d.bay_location,
-        "records": d.records,
+        "bayLocation": clearable_str(d.bay_location),
+        "records": clearable_str(d.records),
         "cadBlockName": d.block_name,
         "gridX": d.grid_x,
         "gridY": d.grid_y,
