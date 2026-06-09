@@ -10,6 +10,12 @@ def format_diff_item(attr: str, old_value: Any, new_value: Any) -> str:
 
 
 NOT_EXISTING_RESTORE_DIFF_ITEM = "status(not_existing_in_fid,update)"
+NOT_EXISTING_IN_ELD_STATUS = "not_existing_in_eld"
+
+
+def build_not_existing_restore_diff_item(old_status: str, new_status: str = "update") -> str:
+    """构造 status 恢复类 diff 项，格式：status(旧值,新值)。"""
+    return f"status({old_status},{new_status})"
 
 
 def build_not_existing_restore_detail(summary: str) -> dict:
@@ -17,6 +23,14 @@ def build_not_existing_restore_detail(summary: str) -> dict:
     return {
         "summary": summary,
         "diff_items": [NOT_EXISTING_RESTORE_DIFF_ITEM],
+    }
+
+
+def build_eld_not_existing_restore_detail(summary: str, old_status: str) -> dict:
+    """图面重新出现、但后端曾标记 not_existing_in_eld（或其它 not_* status）时的 diff 详情。"""
+    return {
+        "summary": summary,
+        "diff_items": [build_not_existing_restore_diff_item(old_status)],
     }
 
 

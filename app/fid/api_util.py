@@ -57,6 +57,10 @@ pd.set_option('display.max_rows', None)
 
 def _build_diff_content_from_warning(warning_data: CheckResult) -> List[str]:
     """从规则层构造的 detail.diff_items 生成 diffContent；若不存在则回退解析描述文本。"""
+    operation = getattr(getattr(warning_data, "equipment", None), "operation", None)
+    if operation in ("add", "delete"):
+        return []
+
     detail = warning_data.detail or {}
     if isinstance(detail, dict):
         diff_items = detail.get("diff_items")

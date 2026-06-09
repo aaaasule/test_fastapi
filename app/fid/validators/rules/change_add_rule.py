@@ -10,6 +10,10 @@ sys.path.insert(0, str(project_root))
 
 from app.fid.validators.base_rules import BaseChangeRule
 from app.fid.models import Equipment, CheckResult
+from app.fid.utils.diff_content import (
+    NOT_EXISTING_IN_ELD_STATUS,
+    build_not_existing_restore_diff_item,
+)
 
 class EquipmentAddRule(BaseChangeRule):
     rule_name = "设备新增检测"
@@ -105,7 +109,11 @@ class EquipmentAddRule(BaseChangeRule):
 
         results = []
 
-        deleted_tool_id = [_del.get('code','') for _del in request_data['delete_equipment_list']]
+        deleted_tool_id = [_del.get('code', '') for _del in request_data['delete_equipment_list']]
+        deleted_status_by_code = {
+            _del.get('code', ''): str(_del.get('status') or NOT_EXISTING_IN_ELD_STATUS)
+            for _del in request_data['delete_equipment_list']
+        }
 
         for eq in current:
 
@@ -141,6 +149,8 @@ class EquipmentAddRule(BaseChangeRule):
                     # ✅ 标记为更新
                     eq.operation = "update"
                     description += "和上一版数据相比设备新增，展示新增设备的TOOL_ID\n"
+                    old_status = deleted_status_by_code.get(eq.tool_id, NOT_EXISTING_IN_ELD_STATUS)
+                    diff_items.append(build_not_existing_restore_diff_item(old_status))
 
                 if len(description) > 0:
                     results.append(CheckResult(
