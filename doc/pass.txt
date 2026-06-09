@@ -1,13 +1,38 @@
+"gridList": [
+        {
+            "archive": 0,
+            "axis": "X",
+            "buildingId": 3,
+            "companyId": 1,
+            "createTime": "2026-05-14 13:11:07",
+            "creatorId": "E908112",
+            "fabId": 1,
+            "field": "A1",
+            "id": 184,
+            "lastModifierId": "E908112",
+            "lastModifyTime": "2026-05-14 13:11:07",
+            "valueFrom": 1,
+            "valueTo": 20
+        },
+        {
+            "archive": 0,
+            "axis": "X",
+            "buildingId": 3,
+            "companyId": 1,
+            "createTime": "2026-05-14 13:11:07",
+            "creatorId": "E908112",
+            "fabId": 1,
+            "field": "A2",
+            "id": 185,
+            "lastModifierId": "E908112",
+            "lastModifyTime": "2026-05-14 13:11:07",
+            "valueFrom": 2,
+            "valueTo": 20
+        }
+
+
 {
-  "success": false,
-  "errorMessage": "算法调用失败：必须同时包含 X 和 Y 定义",
-  "errors": [
-    {
-      "errors": [
-        "算法调用失败：必须同时包含 X 和 Y 定义"
-      ]
-    }
-  ],
-  "successes": [],
-  "uploadSessionToken": "df5a2599-77b1-4da9-a75b-56482c9674df"
+  "code": 400,
+  "message": "算法调用失败：必须同时包含 X 和 Y 定义",
+  "traceback": "Traceback (most recent call last):\n  File \"/app/app/fid/api_util.py\", line 220, in _eld_check\n    grid_pillar_finder = GridPillarFinder(\n  File \"/app/app/fid/validators/grid_pillar_finder.py\", line 192, in __init__\n    raise ValueError(\"必须同时包含 X 和 Y 定义\")\nValueError: 必须同时包含 X 和 Y 定义\n"
 }
