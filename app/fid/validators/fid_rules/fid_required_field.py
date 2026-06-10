@@ -156,7 +156,7 @@ def _is_type_vendor_required_field(field: str) -> bool:
 def _skip_type_vendor_validation(request_data: Dict[str, Any] | None) -> bool:
     """
     TYPE / VENDOR 仅 ES 系统参与必填校验；FAB1 / FAB2 的 ES 不校验。
-    校验规则：图块无对应属性 tag 则跳过；有 tag 但值为空或 None 报「必填项缺失」。
+    校验规则：无属性 tag 报「关键属性缺失」；有 tag 但值为空或 None 报「必填项缺失」。
     """
     system = (request_data or {}).get('system') or {}
     system_code = str(system.get('code') or '').strip().upper()
@@ -217,13 +217,16 @@ class FidRequiredFieldRule(BaseRule):
                 #print(f"{field_keys=}")
                 #continue
 
-                # TYPE / VENDOR：无属性 tag 不校验；有键但值为空或 None 仅报「必填项缺失」
+                # TYPE / VENDOR：无属性 tag 报「关键属性缺失」；有键但值为空或 None 报「必填项缺失」
                 if _is_type_vendor_required_field(field):
-                    for _key in field_keys:
-                        value = eq.get(_key)
-                        value = value.strip() if isinstance(value, str) else value
-                        if value is None or value == "":
-                            empty.append(_key)
+                    if len(field_keys) == 0:
+                        critical_patterns_missing.append(field)
+                    else:
+                        for _key in field_keys:
+                            value = eq.get(_key)
+                            value = value.strip() if isinstance(value, str) else value
+                            if value is None or value == "":
+                                empty.append(_key)
                     continue
 
                 for _key in field_keys:
