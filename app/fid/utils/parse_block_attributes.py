@@ -48,6 +48,17 @@ def _sorted_port_suffixes(port_set):
     return sorted(port_set, key=_key)
 
 
+def _drawing_type_vendor(equipment: Dict[str, Any]):
+    """从图块属性读取 TYPE / VENDOR（块级字段，无端口后缀）。"""
+    def _pick(base: str):
+        val = equipment.get(base)
+        if val is not None and str(val).strip() != '':
+            return str(val).strip()
+        return None
+
+    return _pick('TYPE'), _pick('VENDOR')
+
+
 def parse_block_attributes(equipment, filename):
     try:
         # print('[parse_block_attributes] device -',check_which_device(equipment, filename))
@@ -301,6 +312,7 @@ def parse_block_attributes(equipment, filename):
             # code  interface最后一个 - 或者 ; 后面的
 
             _port_ids = _sorted_port_suffixes(all_interface_set) if all_interface_set else [None]
+            block_type, block_vendor = _drawing_type_vendor(equipment)
 
             for _id in _port_ids:
                 if _id is None:
@@ -337,6 +349,8 @@ def parse_block_attributes(equipment, filename):
                     "search_id": id_short,
                     "connection_size": cs_dot,
                     "connection_type": ct_dot,
+                    "type": block_type,
+                    "vendor": block_vendor,
                     "equipment_code": equ_dot,
                     "I/O": io_dot if io_dot is not None else '',
                     "cad_block_name": equipment['CAD_BLOCK_NAME'],
@@ -383,6 +397,7 @@ def parse_block_attributes(equipment, filename):
                     # 有ID_short 有ID.x 是老版本接口， ID_short后面有接口ID, 需要删除
 
             if len(all_interface_set) != 0:
+                block_type, block_vendor = _drawing_type_vendor(equipment)
                 for _id in all_interface_set:
                     IDx = equipment.get(f'ID.{_id}')
                     _result = {
@@ -396,6 +411,8 @@ def parse_block_attributes(equipment, filename):
                         'field_code': f'{sub_system}.{building_level}.{field}',
                         "connection_size": equipment.get(f'CS.{_id}', ''),
                         "connection_type": equipment.get(f'CT.{_id}', ''),
+                        "type": block_type,
+                        "vendor": block_vendor,
                         "equipment_code": equipment.get(f'EQU.{_id}', ''),
                         "cad_block_name": equipment['CAD_BLOCK_NAME'],
                         "layer": equipment['LAYER'],
@@ -409,6 +426,7 @@ def parse_block_attributes(equipment, filename):
                     }
                     result.append(_result)
             else:
+                block_type, block_vendor = _drawing_type_vendor(equipment)
                 result = [
                     {
                         "building_level": building_level,
@@ -421,6 +439,8 @@ def parse_block_attributes(equipment, filename):
                         'field_code': f'{sub_system}.{building_level}.{field}',
                         "connection_size": equipment.get(f'CS', ''),
                         "connection_type": equipment.get(f'CT', ''),
+                        "type": block_type,
+                        "vendor": block_vendor,
                         "equipment_code": equipment.get(f'EQU', ''),
                         "cad_block_name": equipment['CAD_BLOCK_NAME'],
                         "layer": equipment['LAYER'],

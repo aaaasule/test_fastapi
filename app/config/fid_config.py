@@ -44,9 +44,9 @@ FID_REQUIRED_FIELDS = {
     'TAKEOFF':["INTERFACE_CODE", "CS", "CT"],
     'VMB_CHEMICAL':["ID", "CHEMICALNAME", "CT.", "CS.", "I/O"],
     'VMB_GASNAME':["ID", "GASNAME", "CT.", "CS."],
-    'I_LINE':["ID_SHORT", "ID"],
-    'GPB':["ID_SHORT", "ID", "CS."], #固定式工艺盘
-    'NEW_INTER_':["ID_SHORT", "ID", "CS"],
+    'I_LINE':["ID_SHORT", "ID","TYPE", "VENDOR"],
+    'GPB':["ID_SHORT", "ID", "CS.", "TYPE", "VENDOR"], #固定式工艺盘
+    'NEW_INTER_':["ID_SHORT", "ID", "CS", "TYPE", "VENDOR"],
 }
 
 from pathlib import Path

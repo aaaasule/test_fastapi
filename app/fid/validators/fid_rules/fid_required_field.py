@@ -146,6 +146,25 @@ def _is_cs_required_field(field: str) -> bool:
     return field_u == 'CS' or field_u.startswith('CS.')
 
 
+_TYPE_VENDOR_REQUIRED_FIELDS = frozenset({'TYPE', 'VENDOR'})
+
+
+def _is_type_vendor_required_field(field: str) -> bool:
+    return str(field).upper() in _TYPE_VENDOR_REQUIRED_FIELDS
+
+
+def _skip_type_vendor_validation(request_data: Dict[str, Any] | None) -> bool:
+    """
+    TYPE / VENDOR 仅 ES 系统参与必填校验；FAB1 / FAB2 的 ES 不校验。
+    校验规则：图块无对应属性 tag 则跳过；有 tag 但值为空或 None 报「必填项缺失」。
+    """
+    system = (request_data or {}).get('system') or {}
+    system_code = str(system.get('code') or '').strip().upper()
+    if system_code != 'ES':
+        return True
+    return _fab_is_fab1_or_fab2(request_data)
+
+
 def _skip_io_presence_validation(device: str, field: str) -> bool:
     """VMB_CHEMICAL：I/O 不校验 tag 是否存在，仅 tag 存在但为空时报「必填项未填写」。"""
     return device == 'VMB_CHEMICAL' and str(field).upper().startswith('I/O')
@@ -178,6 +197,8 @@ class FidRequiredFieldRule(BaseRule):
             for field in FID_REQUIRED_FIELDS[device]:
                 if _is_cs_required_field(field) and _skip_cs_validation(request_data):
                     continue
+                if _is_type_vendor_required_field(field) and _skip_type_vendor_validation(request_data):
+                    continue
                 if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
                     continue
                                                                                                                      
@@ -195,6 +216,15 @@ class FidRequiredFieldRule(BaseRule):
                         #print(f'43 {field}')
                 #print(f"{field_keys=}")
                 #continue
+
+                # TYPE / VENDOR：无属性 tag 不校验；有键但值为空或 None 仅报「必填项缺失」
+                if _is_type_vendor_required_field(field):
+                    for _key in field_keys:
+                        value = eq.get(_key)
+                        value = value.strip() if isinstance(value, str) else value
+                        if value is None or value == "":
+                            empty.append(_key)
+                    continue
 
                 for _key in field_keys:
                     #value = getattr(eq, _key.lower(), None)

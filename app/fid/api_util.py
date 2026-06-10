@@ -424,6 +424,7 @@ def convert_to_check_errors(results: List[CheckResult]) -> List[CheckError]:
 _VMB_DEVICE_TYPES = ('VMB_GASNAME', 'VMB_CHEMICAL')
 _SDC_SUBSYSTEM_ERROR = '基于SDC校验Sub_system'
 _SDC_CS_CT_ERROR = '基于SDC校验CS、CT'
+_INTERFACE_TYPE_VENDOR_DEVICES = frozenset({'GPB', 'I_LINE', 'NEW_INTER_'})
 
 
 def _filter_vmb_sdc_errors_for_response(errors, device: str, target: str):
@@ -454,6 +455,35 @@ def _equipment_code_for_response(*sources) -> str | None:
         if val is not None and str(val).strip() != '':
             return str(val).strip()
     return None
+
+
+def _drawing_attr_for_response(*sources, base_key: str):
+    """从图块属性读取 DXF 字段。"""
+    base_key = str(base_key).upper()
+    for src in sources:
+        if not src or not isinstance(src, dict):
+            continue
+        eq = {str(k).upper(): v for k, v in src.items()}
+        val = eq.get(base_key)
+        if val is not None and str(val).strip() != '':
+            return str(val).strip()
+    return None
+
+
+def _interface_type_vendor_for_response(*sources):
+    """interface 响应中的 type / vendor，来源于图纸块级属性 TYPE / VENDOR。"""
+    return (
+        _drawing_attr_for_response(*sources, base_key='TYPE'),
+        _drawing_attr_for_response(*sources, base_key='VENDOR'),
+    )
+
+
+def _interface_type_vendor_payload(device: str | None, *sources) -> dict:
+    """仅 GPB / I_LINE / NEW_INTER_ 的 interface 返回 type、vendor。"""
+    if device not in _INTERFACE_TYPE_VENDOR_DEVICES:
+        return {}
+    type_val, vendor_val = _interface_type_vendor_for_response(*sources)
+    return {'type': type_val, 'vendor': vendor_val}
 
 
 def _normalize_is_assigned_value(value):
@@ -712,6 +742,7 @@ async def _fid_check(
         if len(final_error_results) != 0:
             field_record = []
             interface_record = []
+            interface_attrs_by_cad_block = {}
 
             for result in final_error_results:
                 equipment = result.equipment[0]
@@ -747,6 +778,11 @@ async def _fid_check(
                         interface_pd['INTERFACE.uni_code'] == f"{result.equipment[1].get('INTERFACE_CODE')}"]
 
                     search_id = result.equipment[-1].get('SEARCH_ID', '').replace('.', ';')
+                    _type_vendor_payload = _interface_type_vendor_payload(
+                        result.device,
+                        result.equipment[-1],
+                        result.equipment[0],
+                    )
                     _data = {
                         'id': _interface_pd.iloc[0]['INTERFACE.id'] if not _interface_pd.empty else None,
                         'parent_id': '',
@@ -787,8 +823,12 @@ async def _fid_check(
                         'errors': _filter_vmb_sdc_errors_for_response(
                             result.errors, result.device, 'interface')
                     }
+                    _data.update(_type_vendor_payload)
                     if not check_result_valid(_data):
                         raise Exception('check result is not valid')
+
+                    if _type_vendor_payload:
+                        interface_attrs_by_cad_block[_data['cadBlockId']] = _type_vendor_payload
 
                     key = f"{_data['uniCode']}-{_data['cadBlockId']}"
                     if key not in interface_record:
@@ -829,6 +869,11 @@ async def _fid_check(
                         _interface_pd = interface_pd[
                             interface_pd['INTERFACE.uni_code'] == f"{result.equipment[-1].get('INTERFACE_CODE')}"]
 
+                        _type_vendor_payload = _interface_type_vendor_payload(
+                            result.device,
+                            _equipment,
+                            result.equipment[0],
+                        )
                         _data = {
                             'id': _interface_pd.iloc[0]['INTERFACE.id'] if not _interface_pd.empty else None,
                             'parent_id': '',
@@ -865,6 +910,9 @@ async def _fid_check(
                             'errors': _filter_vmb_sdc_errors_for_response(
                                 result.errors, result.device, 'interface')
                         }
+                        _data.update(_type_vendor_payload)
+                        if _type_vendor_payload:
+                            interface_attrs_by_cad_block[_data['cadBlockId']] = _type_vendor_payload
                         key = f"{_data['uniCode']}-{_data['cadBlockId']}"
                         if key not in interface_record:
                             final_results['interfaces'].append(_data)
@@ -873,6 +921,11 @@ async def _fid_check(
                         continue
 
                     # 正常 Field 数据构建
+                    _field_type_vendor_payload = _interface_type_vendor_payload(
+                        result.device,
+                        _equipment,
+                        result.equipment[0],
+                    )
                     field_data = {
                         'id': field_id,
                         'system_id': system['id'],
@@ -904,6 +957,8 @@ async def _fid_check(
                         'errors': _filter_vmb_sdc_errors_for_response(
                             result.errors, result.device, 'field')
                     }
+                    if _field_type_vendor_payload:
+                        interface_attrs_by_cad_block[field_data['cadBlockId']] = _field_type_vendor_payload
 
                     key = f"{field_data['uniCode']}-{field_data['cadBlockId']}"
                     if key not in field_record:
@@ -962,6 +1017,7 @@ async def _fid_check(
                         'equipmentCode': field_item.get('equipmentCode'),
                         'errors': idx_errors
                     }
+                    new_interface.update(interface_attrs_by_cad_block.get(field_item.get('cadBlockId'), {}))
                     final_results['interfaces'].append(new_interface)
                 field_item['errors'] = [e for e in (field_item.get('errors') or []) if e.get('errorName') != 'ID.X唯一性错误']
 
@@ -1023,6 +1079,7 @@ async def _fid_check(
                         'equipmentCode': field_item.get('equipmentCode'),
                         'errors': interface_required_errors
                     }
+                    new_interface.update(interface_attrs_by_cad_block.get(field_item.get('cadBlockId'), {}))
                     final_results['interfaces'].append(new_interface)
 
                 if all_migrated:
@@ -1123,6 +1180,11 @@ async def _fid_check(
                     cad_in_out_code = _warning_cad_in_out_code(result)
                     warning_interface_uni_code = result.equipment[-1].get('INTERFACE_CODE') if result.operation != 'delete' else result.equipment[-1].get('UNI_CODE')
 
+                    _type_vendor_payload = _interface_type_vendor_payload(
+                        result.device,
+                        result.equipment[-1],
+                        result.equipment[0],
+                    )
                     _data = {
                         'id': interface_id if interface_id != 'None' else int(
                             interface_id) if interface_id is not None else None,
@@ -1166,6 +1228,7 @@ async def _fid_check(
                         'detail': result.detail,
                         'diffContent': build_fid_diff_content(result),
                     }
+                    _data.update(_type_vendor_payload)
 
                     if not check_result_valid(_data):
                         raise Exception('check result is not valid')
