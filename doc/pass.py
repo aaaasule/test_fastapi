@@ -1,316 +1,334 @@
+import time
 from typing import List, Any, Dict
-import re
-
 import sys
 from pathlib import Path
 
-# 将项目根目录加入 Python 路径（当前文件: app/fid/eld_check_cli.py -> 上两级到根目录）
+# 将项目根目录加入 Python 路径
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.fid.validators.base_rules import BaseRule
+from app.fid.validators.base_rules import FIDBaseRule
 from app.fid.models import CheckResult
-#from app.config.fid_config import FID_REQUIRED_FIELDS
-current_file = Path(__file__).resolve()
-root_dir = current_file.parent
-while root_dir.name != 'app' and root_dir.parent != root_dir:
-    root_dir = root_dir.parent
+from app.fid.utils.parse_block_attributes import parse_block_attributes
+from app.fid.validators.fid_rules.fid_required_field import (
+    _skip_cs_validation,
+    _should_validate_pc_io_change,
+    _should_validate_type_vendor_change,
+)
+import pandas as pd
+import json
 
-if root_dir.name == 'app':
-    project_root = root_dir.parent
-else:
-    #  fallback: 假设就在上一级
-    project_root = current_file.parent.parent
-
-# 3. 将项目根目录加入 Python 搜索路径
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-from app.config.fid_config import FID_REQUIRED_FIELDS
-
-from app.fid.utils.check_device import check_which_device
-
-# 由端口键推导必须存在的 ID.{suffix}：仅 EQU.x / CT.x / CS.x（与业务约定一致）
-_CT_CS_EQU_PREFIXES = ('CT', 'CS', 'EQU')
-_ID_DETAIL_MAX_LIST = 80
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', None)
+pd.set_option('display.expand_frame_repr', False)
 
 
-def _fab_is_fab1_or_fab2(request_data: Dict[str, Any] | None) -> bool:
-    """
-    是否 FAB1 / FAB2 厂区（用于关闭部分 VMB 的 ID.x 空值校验）。
+class BlockAttributeCheck(FIDBaseRule):
+    rule_type = "warning"
+    rule_name = '图块属性修改'
 
-    约定：fab.id 为厂区编号（与名称中 Fab 后的数字一致，如 id=3 对应 Fab3）；
-    fab.name 为厂区名称。优先用 id；无法解析时再从 name 末尾连续数字推断。
-    """
-    fab = (request_data or {}).get('fab') or {}
-    n = None
-    raw_id = fab.get('id')
-    if raw_id is not None and str(raw_id).strip() != '':
-        try:
-            n = int(raw_id)
-        except (TypeError, ValueError):
-            n = None
-    if n is None:
-        name = fab.get('name')
-        if name is not None:
-            m = re.search(r'(\d+)\s*$', str(name).strip())
-            if m:
-                try:
-                    n = int(m.group(1))
-                except ValueError:
-                    n = None
-    return n in (1, 2)
+    DEFAULT_FIELDS = ["VMB_TYPE", 'I/O']
+    #io\
 
+    ATTRIBUTIONS = {
+        'TAKEOFF': ['CS', 'CT', 'FLOW_UNIT', 'DESIGN_FLOW'],
+        'VMB_CHEMICAL': ["CT.", "CS.", "ID.", "DESIGN_FLOW", 'FLOW_UNIT'],
+        'VMB_GASNAME': ["CT.", "CS.", "ID.", "DESIGN_FLOW", 'FLOW_UNIT'],
+        'I_LINE': ["ID.", "TYPE", "VENDOR"],
+        'GPB': ["ID.", "CS.", "TYPE", "VENDOR"],
+        'NEW_INTER_': ["CS", "TYPE", "VENDOR"],
+    }
 
-def _skip_cs_validation(request_data: Dict[str, Any] | None) -> bool:
-    system = (request_data or {}).get('system') or {}
-    system_code = str(system.get('code') or '').strip().upper()
-    return _fab_is_fab1_or_fab2(request_data) and system_code == 'ES'
+    _FIELD_LEVEL_ATTRS = frozenset({'vmb-type'})
 
+    def check(self, equipments: Dict[str, List[Dict[str, Any]]], device=None, request_data=None) -> List[CheckResult]:
+        global_start = time.time()
+        print(f"[block_attribute_modified] Start checking device: {device}")
 
-def _should_validate_pc_io_change(request_data: Dict[str, Any] | None) -> bool:
-    """PC 系统校验图块 I/O 与接口 in_out_code 是否一致；FAB1 / FAB2 厂区跳过。"""
-    if _fab_is_fab1_or_fab2(request_data):
-        return False
-    system = (request_data or {}).get('system') or {}
-    return str(system.get('code') or '').strip().upper() == 'PC'
+        if device is not None:
+            equipments = equipments.get(device, [])
 
+        if len(equipments) == 0:
+            return []
 
-def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any], include_cs: bool = True) -> set:
-    """从 EQU.{suffix}、CT.{suffix}、CS.{suffix} 收集端口后缀（suffix 不含点）。"""
-    out = set()
-    for k in eq:
-        if '.' not in k:
-            continue
-        ku = str(k).upper()
-        head, tail = ku.split('.', 1)
-        if head not in _CT_CS_EQU_PREFIXES or not tail or '.' in tail:
-            continue
-        if head == 'CS' and not include_cs:
-            continue
-        out.add(tail)
-    return out
-
-
-def _suffix_sort_key(s: str):
-    if s.isdigit():
-        return (0, int(s), len(s), s)
-    return (1, s)
-
-
-def _format_id_label_list(labels, max_show: int = _ID_DETAIL_MAX_LIST) -> str:
-    if len(labels) <= max_show:
-        return ', '.join(labels)
-    return ', '.join(labels[:max_show]) + f' 等共 {len(labels)} 项'
-
-
-def _id_required_by_port_keys_audit(eq: Dict[str, Any], device: str, request_data: Dict[str, Any] | None = None):
-    """
-    VMB：若存在 EQU.x、CT.x、CS.x，则必须有 ID.x。
-
-    FAB1 / FAB2 的 ES 系统不校验。
-
-    返回 (missing_labels, empty_labels)，无需检查则返回 None。
-    """
-    if not str(device).startswith('VMB'):
-        return None
-    if _skip_cs_validation(request_data):
-        return None
-
-    suffixes = _port_suffixes_from_equ_ct_cs(eq)
-    if not suffixes:
-        return None
-
-    by_upper = {str(k).upper(): k for k in eq.keys()}
-    missing = []
-    empty = []
-
-    for suf in sorted(suffixes, key=_suffix_sort_key):
-        id_label = f'ID.{suf}'
-        id_u = id_label.upper()
-        if id_u not in by_upper:
-            missing.append(id_label)
-            continue
-        raw_k = by_upper[id_u]
-        val = eq.get(raw_k)
-        val = val.strip() if isinstance(val, str) else val
-        if val is None or val == '':
-            empty.append(id_label)
-
-    if not missing and not empty:
-        return None
-    return missing, empty
-
-
-def _is_cs_required_field(field: str) -> bool:
-    field_u = str(field).upper()
-    return field_u == 'CS' or field_u.startswith('CS.')
-
-
-_TYPE_VENDOR_REQUIRED_FIELDS = frozenset({'TYPE', 'VENDOR'})
-
-
-def _is_type_vendor_required_field(field: str) -> bool:
-    return str(field).upper() in _TYPE_VENDOR_REQUIRED_FIELDS
-
-
-def _skip_type_vendor_validation(request_data: Dict[str, Any] | None) -> bool:
-    """
-    TYPE / VENDOR 仅 ES 系统参与必填校验；FAB1 / FAB2 的 ES 不校验。
-    校验规则：无属性 tag 报「关键属性缺失」；有 tag 但值为空或 None 报「必填项缺失」。
-    """
-    system = (request_data or {}).get('system') or {}
-    system_code = str(system.get('code') or '').strip().upper()
-    if system_code != 'ES':
-        return True
-    return _fab_is_fab1_or_fab2(request_data)
-
-
-def _skip_io_presence_validation(device: str, field: str) -> bool:
-    """VMB_CHEMICAL：I/O 不校验 tag 是否存在，仅 tag 存在但为空时报「必填项未填写」。"""
-    return device == 'VMB_CHEMICAL' and str(field).upper().startswith('I/O')
-
-
-class FidRequiredFieldRule(BaseRule):
-
-    eqp_type = 'TAKEOFF'
-    rule_type = "error"
-    rule_name = "必填项缺失"
-
-    def check(self, equipments: Dict[str, List[Dict[str, Any]]], device: str = None, request_data = None) -> List[CheckResult]:
         results = []
 
-        if device != None:
-            equipments = equipments[device]
+        # --- 1. 数据准备与预处理 (关键优化点) ---
+        df_prep_start = time.time()
 
-        for eq in equipments:
-            #print(device, eq)
-            missing = []
-            empty = []
+        df = pd.DataFrame.from_dict(request_data['interface_list'])
+        if 'in_out_code' not in df.columns:
+            df['in_out_code'] = ''
+        interface_pd = df.add_prefix('INTERFACE.')
 
-            attrs = eq
-            device = check_which_device(eq, request_data['filename'])
+        field_pd = pd.DataFrame.from_dict(request_data['field_list']).add_prefix('FIELD.')
 
-            # 配置项「整类缺失」（无任何匹配键）合并为一条，避免 api_util 按 errorName 去重后只保留 CT. 等一条
-            critical_patterns_missing = []
+        if interface_pd.empty:
+            interface_pd = pd.DataFrame([], columns=['id', 'field_id', 'uni_code', 'cad_block_id']).add_prefix(
+                'INTERFACE.')
+        if field_pd.empty:
+            field_pd = pd.DataFrame([], columns=['id', 'system_id', 'subsystem_id', 'code', 'uni_code', 'cad_block_id',
+                                                 'insert_point_x', 'insert_point_y', 'insert_point_z']).add_prefix(
+                'FIELD.')
 
-            #required_fields =
-            for field in FID_REQUIRED_FIELDS[device]:
-                if _is_cs_required_field(field) and _skip_cs_validation(request_data):
-                    continue
-                if _is_type_vendor_required_field(field) and _skip_type_vendor_validation(request_data):
-                    continue
-                if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
-                    continue
-                                                                                                                     
+        final_df = pd.merge(
+            field_pd,
+            interface_pd,
+            left_on='FIELD.id',
+            right_on='INTERFACE.field_id',
+            how='left'
+        )
 
-                #print(f"{device} {field=}")
-                tmp_result = []
-                field_keys = []
-                for k in attrs:
-                    #print(f"37{k=}")
-                    if '.' in field and k.upper().startswith(field):
-                        #print(f'39 {field}')
-                        field_keys.append(k)
-                    elif '.' not in field and k.upper() == field:
-                        field_keys.append(k)
-                        #print(f'43 {field}')
-                #print(f"{field_keys=}")
-                #continue
+        # 【优化核心】：将 DataFrame 转换为字典，Key 为 uni_code
+        # 这样查找的时间复杂度从 O(N) 降为 O(1)
+        # 注意：如果有重复的 uni_code，这里只保留最后一个（通常业务逻辑中 uni_code 应唯一，或者取第一个均可，视具体需求而定）
+        # 使用 to_dict('records') 然后构建字典，或者直接利用 set_index
+        # 【优化核心】：将 DataFrame 转换为字典，Key 为 uni_code
+        # 这样查找的时间复杂度从 O(N) 降为 O(1)
 
-                # TYPE / VENDOR：无属性 tag 报「关键属性缺失」；有键但值为空或 None 报「必填项缺失」
-                if _is_type_vendor_required_field(field):
-                    if len(field_keys) == 0:
-                        critical_patterns_missing.append(field)
+        if not final_df.empty:
+            # --- 修复开始 ---
+            # 1. 检查是否有重复的 uni_code
+            duplicate_count = final_df['INTERFACE.uni_code'].duplicated().sum()
+            if duplicate_count > 0:
+                print(
+                    f"[WARNING] 发现 {duplicate_count} 条重复的 INTERFACE.uni_code 记录，正在执行去重策略（保留最后一条）...")
+                # 2. 去重：基于 'INTERFACE.uni_code' 列，保留最后一条记录 (keep='last')
+                # 如果业务要求保留第一条，请将 keep='last' 改为 keep='first'
+                final_df_dedup = final_df.drop_duplicates(subset=['INTERFACE.uni_code'], keep='last')
+            else:
+                final_df_dedup = final_df
+
+            try:
+                # 3. 设置索引并转换字典
+                # 此时索引保证唯一，不会再抛出 ValueError
+                lookup_dict = final_df_dedup.set_index('INTERFACE.uni_code').to_dict(orient='index')
+            except ValueError as e:
+                # 极端兜底：如果去重后仍然失败（理论上不可能），打印错误并初始化为空字典，避免程序崩溃
+                print(f"[ERROR] 构建查找字典失败：{e}。跳过该步骤，后续查找将全部失效。")
+                lookup_dict = {}
+            # --- 修复结束 ---
+
+            print(f"[INFO] 字典大小：{len(lookup_dict)} 条记录 (原始行数：{len(final_df)})")
+        else:
+            lookup_dict = {}
+            print(f"[INFO] 数据为空，字典大小为 0")
+
+        df_prep_end = time.time()
+        print(f"[PERF] DataFrame 准备与字典构建耗时：{(df_prep_end - df_prep_start) * 1000:.2f} ms")
+        print(f"[INFO] 字典大小：{len(lookup_dict)} 条记录")
+
+        # 确定描述
+        if device == 'TAKEOFF':
+            description = "ID_Short 不变前提下，和上一版数据相比图块属性修改："
+        elif device.startswith('VMB'):
+            description = 'ID 不变前提下，和上一版数据相比图块属性修改：'
+        else:
+            description = 'ID_Short 不变前提下，和上一版数据相比图块属性修改：'
+        skip_cs = _skip_cs_validation(request_data)
+        check_pc_io = _should_validate_pc_io_change(request_data)
+        check_type_vendor = _should_validate_type_vendor_change(request_data)
+
+        def log_time(step_name, start_ts):
+            end_ts = time.time()
+            duration_ms = (end_ts - start_ts) * 1000
+            # 只有当耗时超过 1ms 才打印，避免日志过多，或者你可以保留全部
+            if duration_ms > 0.5:
+                print(f"  [TIME] {step_name}: {duration_ms:.2f} ms")
+            return end_ts
+
+        # --- 2. 主循环 ---
+        loop_start = time.time()
+
+        for idx, eq in enumerate(equipments):
+            step_start = time.time()
+
+            # 解析属性
+            parse_start = time.time()
+            try:
+                equipments_info = parse_block_attributes(eq, request_data['filename'])
+            except Exception as e:
+                print(f"[ERROR] parse_block_attributes failed for eq {idx}: {e}")
+                equipments_info = []
+            #log_time(f"Eq[{idx}] parse_block_attributes", parse_start)
+
+            for info_idx, info in enumerate(equipments_info):
+                inner_step_start = time.time()
+                modify_cache = []
+                desc_changes = []  # 【新增】用于收集 description 中的字段变化详情
+                interface_detail = ''
+                field_detail = ''
+
+                # 【优化核心】：字典查找替代 DataFrame 筛选
+                filter_start = time.time()
+                uni_code = info.get('interface_code')
+
+                # 直接从字典获取，耗时接近 0
+                target_dict = lookup_dict.get(uni_code)
+
+                filter_end = log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Dict Lookup", filter_start)
+
+                compare_start = time.time()
+                if target_dict is not None:
+                    # target_dict 现在直接就是一个字典，不需要 iloc[0].to_dict()
+
+                    # 提取变量 (保持原有逻辑)
+                    cs = target_dict.get('INTERFACE.con_size', '')
+                    ct = target_dict.get('INTERFACE.con_type', '')
+                    flow_unit = target_dict.get('INTERFACE.unit', '')
+                    design_flow = target_dict.get('INTERFACE.max_design_flow', '')
+                    vmb_type = target_dict.get('FIELD.vmb_type', '')
+                    in_out_code = target_dict.get('INTERFACE.in_out_code', '')
+
+                    # NaN 处理 (字典取值可能直接是 np.nan，需要转换)
+                    import math
+                    def clean_val(val):
+                        if val is None: return ''
+                        if isinstance(val, float) and math.isnan(val): return ''
+                        return str(val)
+
+                    cs = clean_val(cs)
+                    ct = clean_val(ct)
+                    flow_unit = clean_val(flow_unit)
+                    design_flow = clean_val(design_flow)
+                    vmb_type = clean_val(vmb_type)
+                    in_out_code = clean_val(in_out_code)
+
+                    # --- 比对逻辑 ---
+                    if device == 'TAKEOFF':
+                        if not skip_cs and (cs or info['connection_size']) and cs != info['connection_size']:
+                            modify_cache.append('cs')
+                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})")  # 【修改】
+                            interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
+                        if (ct or info['connection_type']) and ct != info['connection_type']:
+                            modify_cache.append('ct')
+                            desc_changes.append(f"ct({ct},{str(info['connection_type'])})") # 【修改】
+                            interface_detail += f"CT 修改 ({ct}) -> ({info['connection_type']})\n"
+                        if (flow_unit or info['flow_unit']) and flow_unit != info['flow_unit']:
+                            modify_cache.append('flow_unit')
+                            desc_changes.append(f"flow_unit({flow_unit},{str(info['flow_unit'])})") # 【修改】
+                            interface_detail += f"flow_unit 修改 ({flow_unit}) -> ({info['flow_unit']})\n"
+                        if (design_flow or info['design_flow']) and design_flow != info['design_flow']:
+                            modify_cache.append('design_flow')
+                            desc_changes.append(f"design_flow({design_flow},{str(info['design_flow'])})") # 【修改】
+                            interface_detail += f"design_flow 修改 ({design_flow}) -> ({info['design_flow']})\n"
+
+                    elif device in ['VMB_CHEMICAL', 'VMB_GASNAME']:
+                        if not skip_cs and (cs or info['connection_size']) and cs != info['connection_size']:
+                            modify_cache.append('cs')
+                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
+                            interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
+                        if (ct or info['connection_type']) and ct != info['connection_type']:
+                            modify_cache.append('ct')
+                            desc_changes.append(f"ct({ct},{str(info['connection_type'])})") # 【修改】
+                            interface_detail += f"CT 修改 ({ct}) -> ({info['connection_type']})\n"
+                        if (flow_unit or info['flow_unit']) and flow_unit != info['flow_unit']:
+                            modify_cache.append('flow_unit')
+                            desc_changes.append(f"flow_unit({flow_unit},{str(info['flow_unit'])})") # 【修改】
+                            interface_detail += f"flow_unit 修改 ({flow_unit}) -> ({info['flow_unit']})\n"
+                        if (design_flow or info['design_flow']) and design_flow != info['design_flow']:
+                            modify_cache.append('design_flow')
+                            desc_changes.append(f"design_flow({design_flow},{str(info['design_flow'])})") # 【修改】
+                            interface_detail += f"design_flow 修改 ({design_flow}) -> ({info['design_flow']})\n"
+                        if (vmb_type or info['vmb-type']) and vmb_type != info['vmb-type']:
+                            modify_cache.append('vmb-type')
+                            desc_changes.append(f"vmb-type({vmb_type},{str(info['vmb-type'])})") # 【修改】
+                            field_detail += f"vmb_type 修改 ({vmb_type}) -> ({info['vmb-type']})\n"
+                        if check_pc_io:
+                            cad_io = clean_val(info.get('I/O', ''))
+                            if (in_out_code or cad_io) and in_out_code != cad_io:
+                                modify_cache.append('I/O')
+                                desc_changes.append(f"I/O({in_out_code},{cad_io})")
+                                interface_detail += (
+                                    f"I/O 修改，变更前: ({in_out_code})，变更后: ({cad_io})\n"
+                                )
+
+                    elif device in ['I_LINE', 'GPB']:
+                        if not skip_cs and (cs or info['connection_size']) and cs != info['connection_size']:
+                            modify_cache.append('cs')
+                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
+                            interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
+                        if check_pc_io:
+                            cad_io = clean_val(info.get('I/O', ''))
+                            if (in_out_code or cad_io) and in_out_code != cad_io:
+                                modify_cache.append('I/O')
+                                desc_changes.append(f"I/O({in_out_code},{cad_io})")
+                                interface_detail += (
+                                    f"I/O 修改，变更前: ({in_out_code})，变更后: ({cad_io})\n"
+                                )
+
+                    elif device == 'NEW_INTER_':
+                        if not skip_cs and (cs or info['connection_size']) and cs != info['connection_size']:
+                            modify_cache.append('cs')
+                            desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
+                            interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
+
+                    if check_type_vendor and device in ('I_LINE', 'GPB', 'NEW_INTER_'):
+                        prev_type = clean_val(target_dict.get('INTERFACE.type', ''))
+                        prev_vendor = clean_val(target_dict.get('INTERFACE.vendor', ''))
+                        cad_type = clean_val(info.get('type', ''))
+                        cad_vendor = clean_val(info.get('vendor', ''))
+                        if (prev_type or cad_type) and prev_type != cad_type:
+                            modify_cache.append('type')
+                            desc_changes.append(f"type({prev_type},{cad_type})")
+                            interface_detail += f"TYPE 修改 ({prev_type}) -> ({cad_type})\n"
+                        if (prev_vendor or cad_vendor) and prev_vendor != cad_vendor:
+                            modify_cache.append('vendor')
+                            desc_changes.append(f"vendor({prev_vendor},{cad_vendor})")
+                            interface_detail += f"VENDOR 修改 ({prev_vendor}) -> ({cad_vendor})\n"
+
+                log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Attribute Compare", compare_start)
+
+                # 特殊规则
+                # if request_data.get('fab', {}).get('name', '').endswith(('1', '2', '3')) and device not in ['TAKEOFF',
+                #                                                                                             'VMB_CHEMICAL',
+                #                                                                                             'VMB_GASNAME'] and 'cs' in modify_cache:
+                #     modify_cache.remove('cs')
+                if request_data.get('fab', {}).get('name', '').endswith(request_data['disable_fab']) and device not in ['TAKEOFF', 'VMB_CHEMICAL', 'VMB_GASNAME'] and 'cs' in modify_cache:
+                    modify_cache.remove('cs')
+                    desc_changes = [d for d in desc_changes if not d.startswith('cs')] # 【新增】同步移除
+
+                # 结果追加
+                if len(modify_cache) > 0:
+                    append_start = time.time()
+                    if self._FIELD_LEVEL_ATTRS & set(modify_cache):
+                        results.append(CheckResult(
+                            type=self.rule_type,
+                            name="图块属性修改",
+                            description=description + ' '.join(desc_changes), # 【修改】使用详细变化列表
+                            detail={
+                                'summary': description + field_detail + interface_detail,
+                                'diff_items': desc_changes,
+                            },
+                            equipment=[eq],
+                            operation=f'update',
+                            field_or_interface='field',
+                            device=device
+                        ))
                     else:
-                        for _key in field_keys:
-                            value = eq.get(_key)
-                            value = value.strip() if isinstance(value, str) else value
-                            if value is None or value == "":
-                                empty.append(_key)
-                    continue
+                        results.append(CheckResult(
+                            type=self.rule_type,
+                            name="图块属性修改",
+                            description=description + ','.join(desc_changes), # 【修改】使用详细变化列表
+                            detail={
+                                'summary': description + interface_detail,
+                                'diff_items': desc_changes,
+                            },
+                            equipment=[eq, info],
+                            operation=f'update',
+                            field_or_interface='interface',
+                            device=device
+                        ))
+                    #log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Append Result", append_start)
 
-                for _key in field_keys:
-                    #value = getattr(eq, _key.lower(), None)
-                    value = eq.get(_key)
-                    value = value.strip() if isinstance(value, str) else value
+                #log_time(f"  -> Eq[{idx}]-Info[{info_idx}] Total Inner Loop", inner_step_start)
 
-                    # if _key == 'GASNAME':
-                    #     print(f"GASNAME {eq=}")
-                    #     print(f"GASNAME {value=}")
+            #log_time(f"Eq[{idx}] Total Outer Loop", step_start)
 
-                    if _skip_io_presence_validation(device, field):
-                        if value is None or value == "":
-                            empty.append(_key)
-                    else:
-                        if value == None:
-                            missing.append(_key)
-                        if value == "":
-                            empty.append(_key)
-
-
-                if len(field_keys) == 0 and not _skip_io_presence_validation(device, field):
-                    critical_patterns_missing.append(field)
-
-            if critical_patterns_missing:
-                joined = "，".join(critical_patterns_missing)
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="关键属性缺失",
-                    description=f"图块问题,丢失关键业务属性：{joined}",
-                    detail=f"图块问题,丢失关键业务属性：{joined}",
-                    equipment=[eq],
-                    device=device
-                ))
-                print(f"{device=} 未存在必填字段(合并)：{critical_patterns_missing=} eq={eq}")
-
-            #print(f"{missing=}")
-            #print(f"{empty=}")
-
-            if missing:
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="关键属性丢失",
-                    description=f"图块问题,丢失关键业务属性：{', '.join(missing)}",
-                    detail=f"图块问题,丢失关键业务属性：{', '.join(missing)}",
-                    equipment=[eq],
-                    device=device
-                ))
-                print(f"丢失关键业务属性missing eq = {eq}")
-
-            if empty:
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="必填项缺失",
-                    description=f"必填项未填写：{', '.join(empty)}",
-                    detail=f"必填项未填写：{', '.join(empty)}",
-                    equipment=[eq],
-                    device=device,
-                    field_or_interface='interface'
-                ))
-                #print(eq)
-
-            id_audit = _id_required_by_port_keys_audit(eq, device, request_data)
-            if id_audit:
-                miss_ids, empty_ids = id_audit
-                parts = []
-                if miss_ids:
-                    parts.append(
-                        f"图块问题,缺少 {_format_id_label_list(miss_ids)} 属性字段"
-                    )
-                if empty_ids:
-                    parts.append(
-                        f"必填项未填写：{_format_id_label_list(empty_ids)}"
-                    )
-                results.append(CheckResult(
-                    type=self.rule_type,
-                    name="接口ID缺失明细",
-                    description="；".join(parts),
-                    detail="；".join(parts),
-                    equipment=[eq],
-                    device=device,
-                    field_or_interface='interface',
-                ))
-        #print(f"{results=}")
+        loop_end = time.time()
+        print(f"[PERF] 主循环总耗时：{(loop_end - loop_start) * 1000:.2f} ms")
+        print(f"[PERF] 整个 check 函数总耗时：{(time.time() - global_start) * 1000:.2f} ms")
+        print(f"[RESULT] 发现警告数量：{len(results)}")
 
         return results
 
