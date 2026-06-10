@@ -1,401 +1,319 @@
-# -*- coding: utf-8 -*-
-"""跨模块通用工具：异步校验立即响应与结果回调。"""
-from __future__ import annotations
-
-import asyncio
-import json
+from typing import List, Any, Dict
 import re
-import traceback
-from collections.abc import Callable
-from datetime import datetime
-from functools import partial
+
+import sys
 from pathlib import Path
-from typing import Any
 
-import requests
+# 将项目根目录加入 Python 路径（当前文件: app/fid/eld_check_cli.py -> 上两级到根目录）
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from app.config import logger
-from app.config.fid_config import SYNC_BASE_URL
-from app.fid.utils.replace_nan_with_none import replace_nan_with_none
-from app.fid.utils.snake_to_camel import snake_to_camel
+from app.fid.validators.base_rules import BaseRule
+from app.fid.models import CheckResult
+#from app.config.fid_config import FID_REQUIRED_FIELDS
+current_file = Path(__file__).resolve()
+root_dir = current_file.parent
+while root_dir.name != 'app' and root_dir.parent != root_dir:
+    root_dir = root_dir.parent
 
-_CALLBACK_PAYLOAD_DIR = Path(__file__).resolve().parent / "temp_debug" / "callback_payload"
-_FID_CALLBACK_ROW_KEYS = (
-    "interfaceErrors",
-    "fieldErrors",
-    "interfaceSuccesses",
-    "fieldSuccesses",
-)
+if root_dir.name == 'app':
+    project_root = root_dir.parent
+else:
+    #  fallback: 假设就在上一级
+    project_root = current_file.parent.parent
 
-def build_sync_callback_url(callback_path: str) -> str:
-    """拼接 ``sync_base_url`` 与回调相对路径。"""
-    base = (SYNC_BASE_URL or "").rstrip("/")
-    path = (callback_path or "").strip().strip('"').strip("'").lstrip("/")
-    if not base or not path:
-        return ""
-    return f"{base}/{path}"
+# 3. 将项目根目录加入 Python 搜索路径
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+from app.config.fid_config import FID_REQUIRED_FIELDS
 
+from app.fid.utils.check_device import check_which_device
 
-def make_async_accept_response(
-    upload_session_token: str,
-    *,
-    x_fab_ds: str = "",
-) -> dict[str, Any]:
-    payload = {
-        "code": 200,
-        "message": "请求已接收，校验处理中",
-        "success": True,
-        "uploadSessionToken": upload_session_token,
-    }
-    if x_fab_ds:
-        payload["X-Fab-Ds"] = x_fab_ds
-    return payload
+# 由端口键推导必须存在的 ID.{suffix}：仅 EQU.x / CT.x / CS.x（与业务约定一致）
+_CT_CS_EQU_PREFIXES = ('CT', 'CS', 'EQU')
+_ID_DETAIL_MAX_LIST = 80
 
 
-def make_task_error_response(message: str, *, detail: str | None = None) -> dict[str, Any]:
-    return {
-        "code": 400,
-        "message": message,
-        "success": False,
-        "data": [{"errors": [detail or message]}],
-    }
+def _fab_is_fab1_or_fab2(request_data: Dict[str, Any] | None) -> bool:
+    """
+    是否 FAB1 / FAB2 厂区（用于关闭部分 VMB 的 ID.x 空值校验）。
+
+    约定：fab.id 为厂区编号（与名称中 Fab 后的数字一致，如 id=3 对应 Fab3）；
+    fab.name 为厂区名称。优先用 id；无法解析时再从 name 末尾连续数字推断。
+    """
+    fab = (request_data or {}).get('fab') or {}
+    n = None
+    raw_id = fab.get('id')
+    if raw_id is not None and str(raw_id).strip() != '':
+        try:
+            n = int(raw_id)
+        except (TypeError, ValueError):
+            n = None
+    if n is None:
+        name = fab.get('name')
+        if name is not None:
+            m = re.search(r'(\d+)\s*$', str(name).strip())
+            if m:
+                try:
+                    n = int(m.group(1))
+                except ValueError:
+                    n = None
+    return n in (1, 2)
 
 
-def _item_has_errors(item: dict[str, Any]) -> bool:
-    errs = item.get("errors")
-    if isinstance(errs, list):
-        return len(errs) > 0
-    return bool(errs)
+def _skip_cs_validation(request_data: Dict[str, Any] | None) -> bool:
+    system = (request_data or {}).get('system') or {}
+    system_code = str(system.get('code') or '').strip().upper()
+    return _fab_is_fab1_or_fab2(request_data) and system_code == 'ES'
 
 
-def _split_list_rows(data: list[Any]) -> tuple[list[Any], list[Any]]:
-    errors: list[Any] = []
-    successes: list[Any] = []
-    for item in data:
-        if not isinstance(item, dict):
+def _should_validate_pc_io_change(request_data: Dict[str, Any] | None) -> bool:
+    """PC 系统校验图块 I/O 与接口 in_out_code 是否一致；FAB1 / FAB2 厂区跳过。"""
+    if _fab_is_fab1_or_fab2(request_data):
+        return False
+    system = (request_data or {}).get('system') or {}
+    return str(system.get('code') or '').strip().upper() == 'PC'
+
+
+def _port_suffixes_from_equ_ct_cs(eq: Dict[str, Any], include_cs: bool = True) -> set:
+    """从 EQU.{suffix}、CT.{suffix}、CS.{suffix} 收集端口后缀（suffix 不含点）。"""
+    out = set()
+    for k in eq:
+        if '.' not in k:
             continue
-        if _item_has_errors(item):
-            errors.append(item)
-        else:
-            successes.append(item)
-    return errors, successes
-
-
-def _split_fid_rows(data: dict[str, Any]) -> dict[str, list[Any]]:
-    interface_errors: list[Any] = []
-    interface_successes: list[Any] = []
-    field_errors: list[Any] = []
-    field_successes: list[Any] = []
-
-    for item in data.get("interfaces") or []:
-        if not isinstance(item, dict):
+        ku = str(k).upper()
+        head, tail = ku.split('.', 1)
+        if head not in _CT_CS_EQU_PREFIXES or not tail or '.' in tail:
             continue
-        if _item_has_errors(item):
-            interface_errors.append(item)
-        else:
-            interface_successes.append(item)
-
-    for item in data.get("field") or []:
-        if not isinstance(item, dict):
+        if head == 'CS' and not include_cs:
             continue
-        if _item_has_errors(item):
-            field_errors.append(item)
-        else:
-            field_successes.append(item)
-
-    return {
-        "interfaceErrors": interface_errors,
-        "fieldErrors": field_errors,
-        "interfaceSuccesses": interface_successes,
-        "fieldSuccesses": field_successes,
-    }
-
-
-def _deep_keys_to_camel(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {
-            (snake_to_camel(k) if "_" in str(k) else k): _deep_keys_to_camel(v)
-            for k, v in obj.items()
-        }
-    if isinstance(obj, list):
-        return [_deep_keys_to_camel(item) for item in obj]
-    return obj
-
-
-def _normalize_fid_flag(value: Any) -> Any:
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return 1 if value else 0
-    if isinstance(value, str) and value.lower() in ("true", "false"):
-        return 1 if value.lower() == "true" else 0
-    return value
-
-
-def _normalize_fid_callback_row(row: dict[str, Any]) -> dict[str, Any]:
-    normalized = _deep_keys_to_camel(replace_nan_with_none(row))
-    for key in ("distributionBox", "locked"):
-        if key in normalized:
-            normalized[key] = _normalize_fid_flag(normalized[key])
-    return normalized
-
-
-def _prepare_fid_callback_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """FID 回调：camelCase、非法浮点清洗，并将布尔标记转为 0/1。"""
-    prepared = replace_nan_with_none(payload)
-    for key in _FID_CALLBACK_ROW_KEYS:
-        rows = prepared.get(key)
-        if not isinstance(rows, list):
-            continue
-        prepared[key] = [
-            _normalize_fid_callback_row(row) if isinstance(row, dict) else row
-            for row in rows
-        ]
-    return prepared
-
-
-def _json_safe_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """确保可被标准 JSON 解析（禁止 NaN/Infinity 与非原生类型）。"""
-    return json.loads(json.dumps(payload, ensure_ascii=False, allow_nan=False))
-
-
-def _attach_callback_context(
-    payload: dict[str, Any],
-    upload_session_token: str,
-    *,
-    x_fab_ds: str = "",
-) -> dict[str, Any]:
-    out = dict(payload)
-    out["uploadSessionToken"] = upload_session_token
-    # X-Fab-Ds 通过 HTTP Header 传递；放入 Body 可能导致 Java 端严格反序列化失败
+        out.add(tail)
     return out
 
 
-def _empty_fid_callback_rows() -> dict[str, list[Any]]:
-    return {
-        "interfaceErrors": [],
-        "fieldErrors": [],
-        "interfaceSuccesses": [],
-        "fieldSuccesses": [],
-    }
+def _suffix_sort_key(s: str):
+    if s.isdigit():
+        return (0, int(s), len(s), s)
+    return (1, s)
 
 
-def format_parse_callback_payload(
-    result: dict[str, Any],
-    upload_session_token: str,
-    *,
-    module: str = "SLD",
-    x_fab_ds: str = "",
-) -> dict[str, Any]:
+def _format_id_label_list(labels, max_show: int = _ID_DETAIL_MAX_LIST) -> str:
+    if len(labels) <= max_show:
+        return ', '.join(labels)
+    return ', '.join(labels[:max_show]) + f' 等共 {len(labels)} 项'
+
+
+def _id_required_by_port_keys_audit(eq: Dict[str, Any], device: str, request_data: Dict[str, Any] | None = None):
     """
-    将各模块内部校验结果转为统一回调结构。
+    VMB：若存在 EQU.x、CT.x、CS.x，则必须有 ID.x。
 
-    FID 模块::
+    FAB1 / FAB2 的 ES 系统不校验。
 
-        {
-            "uploadSessionToken": "...",
-            "success": true/false,
-            "errorMessage": "...",
-            "interfaceErrors": [...],
-            "fieldErrors": [...],
-            "interfaceSuccesses": [...],
-            "fieldSuccesses": [...],
-        }
-
-    其他模块（ELD/SLD）::
-
-        {
-            "uploadSessionToken": "...",
-            "success": true/false,
-            "errorMessage": "...",
-            "errors": [...],
-            "successes": [...],
-        }
-
-    ``success`` 语义：
-    - 业务级（``code != 400``）：恒为 ``True``；是否校验通过看错误列表 / ``errorMessage``。
-    - 系统级（``code == 400`` 或未捕获异常）：为 ``False``。
+    返回 (missing_labels, empty_labels)，无需检查则返回 None。
     """
-    code = int(result.get("code") or 200)
-    message = str(result.get("message") or "").strip()
-    data = result.get("data")
-    old_success = result.get("success")
-    module_upper = (module or "SLD").upper()
-    is_fid = module_upper == "FID"
+    if not str(device).startswith('VMB'):
+        return None
+    if _skip_cs_validation(request_data):
+        return None
 
-    if code == 400 or (old_success is None and result.get("traceback")):
-        if is_fid:
-            error_message = message or "算法调用失败"
-            return _attach_callback_context(
-                {
-                    "code": code,
-                    "message": error_message,
-                    "success": False,
-                    "errorMessage": error_message,
-                    **_empty_fid_callback_rows(),
-                },
-                upload_session_token,
-                x_fab_ds=x_fab_ds,
-            )
-        return _attach_callback_context(
-            {
-                "success": False,
-                "errorMessage": message or "算法调用失败",
-                "errors": [],
-                "successes": [],
-            },
-            upload_session_token,
-            x_fab_ds=x_fab_ds,
-        )
+    suffixes = _port_suffixes_from_equ_ct_cs(eq)
+    if not suffixes:
+        return None
 
-    if is_fid and isinstance(data, dict):
-        fid_rows = _split_fid_rows(data)
-        has_business_errors = (
-            old_success is False
-            or bool(fid_rows["interfaceErrors"])
-            or bool(fid_rows["fieldErrors"])
-        )
-        error_message = (message or "校验失败") if has_business_errors else (message or "调用成功")
-        return _attach_callback_context(
-            {
-                "code": code,
-                "message": error_message,
-                "success": True,
-                "errorMessage": error_message,
-                **fid_rows,
-            },
-            upload_session_token,
-            x_fab_ds=x_fab_ds,
-        )
+    by_upper = {str(k).upper(): k for k in eq.keys()}
+    missing = []
+    empty = []
 
-    if isinstance(data, list):
-        errors, successes = _split_list_rows(data)
-    else:
-        errors, successes = [], []
+    for suf in sorted(suffixes, key=_suffix_sort_key):
+        id_label = f'ID.{suf}'
+        id_u = id_label.upper()
+        if id_u not in by_upper:
+            missing.append(id_label)
+            continue
+        raw_k = by_upper[id_u]
+        val = eq.get(raw_k)
+        val = val.strip() if isinstance(val, str) else val
+        if val is None or val == '':
+            empty.append(id_label)
 
-    has_business_errors = old_success is False or bool(errors)
-    return _attach_callback_context(
-        {
-            "success": True,
-            "errorMessage": (message or "校验失败") if has_business_errors else (message or "调用成功"),
-            "errors": (
-                errors
-                if errors
-                else (list(data) if has_business_errors and isinstance(data, list) else [])
-            ),
-            "successes": successes,
-        },
-        upload_session_token,
-        x_fab_ds=x_fab_ds,
-    )
+    if not missing and not empty:
+        return None
+    return missing, empty
 
 
-def _dump_callback_payload_to_file(
-    payload: dict[str, Any],
-    *,
-    log_tag: str,
-    upload_session_token: str,
-) -> Path:
-    """将回调 payload 写入 JSON 文件，便于排查。"""
-    _CALLBACK_PAYLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    safe_token = re.sub(r"[^\w\-]", "_", upload_session_token or "unknown")[:64]
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    file_path = _CALLBACK_PAYLOAD_DIR / f"{log_tag.lower()}_{safe_token}_{ts}.json"
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
-    return file_path
+def _is_cs_required_field(field: str) -> bool:
+    field_u = str(field).upper()
+    return field_u == 'CS' or field_u.startswith('CS.')
 
 
-def post_parse_callback_sync(
-    result: dict[str, Any],
-    upload_session_token: str,
-    callback_url: str,
-    *,
-    log_tag: str = "PARSE",
-    timeout: int = 120,
-    x_fab_ds: str = "",
-) -> None:
-    if not callback_url:
-        logger.error("[%s] 未配置回调地址 sync_base_url / *_sync_callback_url", log_tag)
-        return
-
-    payload = format_parse_callback_payload(
-        result,
-        upload_session_token,
-        module=log_tag,
-        x_fab_ds=x_fab_ds,
-    )
-    if (log_tag or "").upper() == "FID":
-        payload = _prepare_fid_callback_payload(payload)
-    payload = _json_safe_payload(payload)
-
-    headers = {"Content-Type": "application/json; charset=utf-8"}
-    if x_fab_ds:
-        headers["X-Fab-Ds"] = x_fab_ds
-    try:
-        logger.info("[%s] payload keys: %s", log_tag, list(payload.keys()))
-        payload_file = _dump_callback_payload_to_file(
-            payload,
-            log_tag=log_tag,
-            upload_session_token=upload_session_token,
-        )
-        logger.info("[%s] payload 已写入 %s", log_tag, payload_file)
-
-        response = requests.post(
-            callback_url,
-            data=json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8"),
-            headers=headers,
-            timeout=timeout,
-        )
-        logger.info(
-            "[%s] 回调完成 url=%s status=%s uploadSessionToken=%s X-Fab-Ds=%s success=%s",
-            log_tag,
-            callback_url,
-            response.status_code,
-            upload_session_token,
-            x_fab_ds,
-            payload.get("success"),
-        )
-        if response.status_code >= 400:
-            logger.error(
-                "[%s] 回调失败 status=%s body=%s",
-                log_tag,
-                response.status_code,
-                response.text[:500],
-            )
-    except Exception:
-        logger.exception(
-            "[%s] 回调请求异常 url=%s uploadSessionToken=%s",
-            log_tag,
-            callback_url,
-            upload_session_token,
-        )
+_TYPE_VENDOR_REQUIRED_FIELDS = frozenset({'TYPE', 'VENDOR'})
 
 
-async def run_sync_task_with_callback(
-    sync_fn: Callable[[], dict[str, Any]],
-    upload_session_token: str,
-    callback_url: str,
-    *,
-    log_tag: str = "PARSE",
-    x_fab_ds: str = "",
-) -> None:
-    """在线程池中执行同步任务，完成后 POST 回调。"""
-    loop = asyncio.get_event_loop()
-    try:
-        result = await loop.run_in_executor(None, sync_fn)
-    except Exception as exc:
-        logger.error("[%s] 后台任务异常\n%s", log_tag, traceback.format_exc())
-        result = make_task_error_response(f"算法调用失败: {exc}", detail=str(exc))
+def _is_type_vendor_required_field(field: str) -> bool:
+    return str(field).upper() in _TYPE_VENDOR_REQUIRED_FIELDS
 
-    await loop.run_in_executor(
-        None,
-        partial(
-            post_parse_callback_sync,
-            result,
-            upload_session_token,
-            callback_url,
-            log_tag=log_tag,
-            x_fab_ds=x_fab_ds,
-        ),
-    )
+
+def _skip_type_vendor_validation(request_data: Dict[str, Any] | None) -> bool:
+    """
+    TYPE / VENDOR 仅 ES 系统参与必填校验；FAB1 / FAB2 的 ES 不校验。
+    校验规则：无属性 tag 报「关键属性缺失」；有 tag 但值为空或 None 报「必填项缺失」。
+    """
+    system = (request_data or {}).get('system') or {}
+    system_code = str(system.get('code') or '').strip().upper()
+    if system_code != 'ES':
+        return True
+    return _fab_is_fab1_or_fab2(request_data)
+
+
+def _skip_io_presence_validation(device: str, field: str) -> bool:
+    """VMB_CHEMICAL：I/O 不校验 tag 是否存在，仅 tag 存在但为空时报「必填项未填写」。"""
+    return device == 'VMB_CHEMICAL' and str(field).upper().startswith('I/O')
+
+
+class FidRequiredFieldRule(BaseRule):
+
+    eqp_type = 'TAKEOFF'
+    rule_type = "error"
+    rule_name = "必填项缺失"
+
+    def check(self, equipments: Dict[str, List[Dict[str, Any]]], device: str = None, request_data = None) -> List[CheckResult]:
+        results = []
+
+        if device != None:
+            equipments = equipments[device]
+
+        for eq in equipments:
+            #print(device, eq)
+            missing = []
+            empty = []
+
+            attrs = eq
+            device = check_which_device(eq, request_data['filename'])
+
+            # 配置项「整类缺失」（无任何匹配键）合并为一条，避免 api_util 按 errorName 去重后只保留 CT. 等一条
+            critical_patterns_missing = []
+
+            #required_fields =
+            for field in FID_REQUIRED_FIELDS[device]:
+                if _is_cs_required_field(field) and _skip_cs_validation(request_data):
+                    continue
+                if _is_type_vendor_required_field(field) and _skip_type_vendor_validation(request_data):
+                    continue
+                if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
+                    continue
+                                                                                                                     
+
+                #print(f"{device} {field=}")
+                tmp_result = []
+                field_keys = []
+                for k in attrs:
+                    #print(f"37{k=}")
+                    if '.' in field and k.upper().startswith(field):
+                        #print(f'39 {field}')
+                        field_keys.append(k)
+                    elif '.' not in field and k.upper() == field:
+                        field_keys.append(k)
+                        #print(f'43 {field}')
+                #print(f"{field_keys=}")
+                #continue
+
+                # TYPE / VENDOR：无属性 tag 报「关键属性缺失」；有键但值为空或 None 报「必填项缺失」
+                if _is_type_vendor_required_field(field):
+                    if len(field_keys) == 0:
+                        critical_patterns_missing.append(field)
+                    else:
+                        for _key in field_keys:
+                            value = eq.get(_key)
+                            value = value.strip() if isinstance(value, str) else value
+                            if value is None or value == "":
+                                empty.append(_key)
+                    continue
+
+                for _key in field_keys:
+                    #value = getattr(eq, _key.lower(), None)
+                    value = eq.get(_key)
+                    value = value.strip() if isinstance(value, str) else value
+
+                    # if _key == 'GASNAME':
+                    #     print(f"GASNAME {eq=}")
+                    #     print(f"GASNAME {value=}")
+
+                    if _skip_io_presence_validation(device, field):
+                        if value is None or value == "":
+                            empty.append(_key)
+                    else:
+                        if value == None:
+                            missing.append(_key)
+                        if value == "":
+                            empty.append(_key)
+
+
+                if len(field_keys) == 0 and not _skip_io_presence_validation(device, field):
+                    critical_patterns_missing.append(field)
+
+            if critical_patterns_missing:
+                joined = "，".join(critical_patterns_missing)
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="关键属性缺失",
+                    description=f"图块问题,丢失关键业务属性：{joined}",
+                    detail=f"图块问题,丢失关键业务属性：{joined}",
+                    equipment=[eq],
+                    device=device
+                ))
+                print(f"{device=} 未存在必填字段(合并)：{critical_patterns_missing=} eq={eq}")
+
+            #print(f"{missing=}")
+            #print(f"{empty=}")
+
+            if missing:
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="关键属性丢失",
+                    description=f"图块问题,丢失关键业务属性：{', '.join(missing)}",
+                    detail=f"图块问题,丢失关键业务属性：{', '.join(missing)}",
+                    equipment=[eq],
+                    device=device
+                ))
+                print(f"丢失关键业务属性missing eq = {eq}")
+
+            if empty:
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="必填项缺失",
+                    description=f"必填项未填写：{', '.join(empty)}",
+                    detail=f"必填项未填写：{', '.join(empty)}",
+                    equipment=[eq],
+                    device=device,
+                    field_or_interface='interface'
+                ))
+                #print(eq)
+
+            id_audit = _id_required_by_port_keys_audit(eq, device, request_data)
+            if id_audit:
+                miss_ids, empty_ids = id_audit
+                parts = []
+                if miss_ids:
+                    parts.append(
+                        f"图块问题,缺少 {_format_id_label_list(miss_ids)} 属性字段"
+                    )
+                if empty_ids:
+                    parts.append(
+                        f"必填项未填写：{_format_id_label_list(empty_ids)}"
+                    )
+                results.append(CheckResult(
+                    type=self.rule_type,
+                    name="接口ID缺失明细",
+                    description="；".join(parts),
+                    detail="；".join(parts),
+                    equipment=[eq],
+                    device=device,
+                    field_or_interface='interface',
+                ))
+        #print(f"{results=}")
+
+        return results
+
+
+if __name__ == '__main__':
+    pass
