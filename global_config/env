@@ -8,9 +8,19 @@ FTP_PORT=21
 #GB
 MEMORY_LIMIT=40
 
-# 应用主日志：按日期目录 + 每小时一个文件，过期目录自动删除
-LOG_RETENTION_PATH=logs
+# 应用主日志配置
+# LOG_PATH: 日志根路径，支持相对路径(logs)、绝对路径(/var/log/fastapi)、用户目录(~/logs/fastapi)
+LOG_PATH=logs
+# LOG_RETENTION_DAYS: 超过该天数的日期目录自动删除
 LOG_RETENTION_DAYS=30
+# LOG_FILE_NAME: 文件名模板，可用占位符 {date}、{slot}、{hour}
+LOG_FILE_NAME=efms_validator_backend.log
+# LOG_FILES_PER_DAY: 每日日志文件个数，24=每小时一个，12=每2小时一个，1=每日一个
+LOG_FILES_PER_DAY=24
+# LOG_FILE_MAX_SIZE_MB: 单文件最大大小(MB)，0 表示不限制
+LOG_FILE_MAX_SIZE_MB=100
+# LOG_FILE_BACKUP_COUNT: 单文件超限时的备份文件个数
+LOG_FILE_BACKUP_COUNT=5
 
 UPLOAD_DIR_RELATIVE=app/fid/temp_uploads
 
