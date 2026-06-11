@@ -470,6 +470,34 @@ def _dxf_attr_for_response(*sources, attr: str) -> str | None:
     return None
 
 
+_FIELD_LEVEL_VENDOR_TYPE_MARKERS = ('TYPE', 'VENDOR')
+_INTERFACE_ATTR_MARKERS_IN_ERROR = (
+    'ID.', 'CS.', 'CT.', 'ID_SHORT',
+    '：CS', '，CS', 'CS，', '：CT', '，CT', 'CT，',
+)
+
+
+def _is_field_level_vendor_type_error(error: dict) -> bool:
+    """TYPE/VENDOR 相关错误归属 field；与接口属性混在同一条描述时归 interface。"""
+    desc = error.get('errorDescription') or ''
+    if not any(marker in desc for marker in _FIELD_LEVEL_VENDOR_TYPE_MARKERS):
+        return False
+    return not any(marker in desc for marker in _INTERFACE_ATTR_MARKERS_IN_ERROR)
+
+
+def _split_field_interface_errors(errors):
+    if not errors:
+        return [], []
+    field_errors = []
+    interface_errors = []
+    for error in errors:
+        if _is_field_level_vendor_type_error(error):
+            field_errors.append(error)
+        else:
+            interface_errors.append(error)
+    return field_errors, interface_errors
+
+
 def _normalize_is_assigned_value(value):
     if value is None:
         return None
@@ -838,7 +866,14 @@ async def _fid_check(
 
                     search_id = _equipment.get('SEARCH_ID').replace('.', ';') if _equipment.get('SEARCH_ID') else ''
 
-                    if result.device in ['TAKEOFF', 'NEW_INTER_']:
+                    response_errors = result.errors
+                    if result.device == 'NEW_INTER_':
+                        field_errors, interface_errors = _split_field_interface_errors(result.errors)
+                        response_errors = interface_errors
+                    else:
+                        field_errors = []
+
+                    if result.device in ('TAKEOFF', 'NEW_INTER_') and response_errors:
                         # Interface 处理逻辑 (嵌套在 else 中)
                         _interface_pd = interface_pd[
                             interface_pd['INTERFACE.uni_code'] == f"{result.equipment[-1].get('INTERFACE_CODE')}"]
@@ -877,13 +912,18 @@ async def _fid_check(
                             'distributionBox': _equipment.get('DISTRIBUTION_BOX'),
                             'equipmentCode': _equipment_code_for_response(_equipment),
                             'errors': _filter_vmb_sdc_errors_for_response(
-                                result.errors, result.device, 'interface')
+                                response_errors, result.device, 'interface')
                         }
                         key = f"{_data['uniCode']}-{_data['cadBlockId']}"
                         if key not in interface_record:
                             final_results['interfaces'].append(_data)
                             interface_record.append(key)
                             errors_num['interface'] += 1
+
+                    if result.device == 'TAKEOFF':
+                        continue
+
+                    if result.device == 'NEW_INTER_' and not field_errors:
                         continue
 
                     # 正常 Field 数据构建
@@ -918,7 +958,8 @@ async def _fid_check(
                         'vendor': _dxf_attr_for_response(result.equipment[0], attr='VENDOR'),
                         'type': _dxf_attr_for_response(result.equipment[0], attr='TYPE'),
                         'errors': _filter_vmb_sdc_errors_for_response(
-                            result.errors, result.device, 'field')
+                            field_errors if result.device == 'NEW_INTER_' else result.errors,
+                            result.device, 'field')
                     }
 
                     key = f"{field_data['uniCode']}-{field_data['cadBlockId']}"
