@@ -67,6 +67,23 @@ def _skip_cs_validation(request_data: Dict[str, Any] | None) -> bool:
     return _fab_is_fab1_or_fab2(request_data) and system_code == 'ES'
 
 
+_VENDOR_TYPE_DEVICES = ('I_LINE', 'GPB', 'NEW_INTER_')
+_VENDOR_TYPE_FIELDS = frozenset({'TYPE', 'VENDOR'})
+
+
+def _should_validate_vendor_type(request_data: Dict[str, Any] | None, device: str) -> bool:
+    """
+    I_LINE / GPB / NEW_INTER_ 的 TYPE、VENDOR 必填与关键属性校验范围：
+    仅 ES 系统；FAB1 / FAB2 的 ES 系统跳过。
+    """
+    if device not in _VENDOR_TYPE_DEVICES:
+        return False
+    system = (request_data or {}).get('system') or {}
+    if str(system.get('code') or '').strip().upper() != 'ES':
+        return False
+    return not _fab_is_fab1_or_fab2(request_data)
+
+
 def _should_validate_pc_io_change(request_data: Dict[str, Any] | None) -> bool:
     """PC 系统校验图块 I/O 与接口 in_out_code 是否一致；FAB1 / FAB2 厂区跳过。"""
     if _fab_is_fab1_or_fab2(request_data):
@@ -146,25 +163,6 @@ def _is_cs_required_field(field: str) -> bool:
     return field_u == 'CS' or field_u.startswith('CS.')
 
 
-_TYPE_VENDOR_REQUIRED_FIELDS = frozenset({'TYPE', 'VENDOR'})
-
-
-def _is_type_vendor_required_field(field: str) -> bool:
-    return str(field).upper() in _TYPE_VENDOR_REQUIRED_FIELDS
-
-
-def _skip_type_vendor_validation(request_data: Dict[str, Any] | None) -> bool:
-    """
-    TYPE / VENDOR 仅 ES 系统参与必填校验；FAB1 / FAB2 的 ES 不校验。
-    校验规则：无属性 tag 报「关键属性缺失」；有 tag 但值为空或 None 报「必填项缺失」。
-    """
-    system = (request_data or {}).get('system') or {}
-    system_code = str(system.get('code') or '').strip().upper()
-    if system_code != 'ES':
-        return True
-    return _fab_is_fab1_or_fab2(request_data)
-
-
 def _skip_io_presence_validation(device: str, field: str) -> bool:
     """VMB_CHEMICAL：I/O 不校验 tag 是否存在，仅 tag 存在但为空时报「必填项未填写」。"""
     return device == 'VMB_CHEMICAL' and str(field).upper().startswith('I/O')
@@ -195,11 +193,12 @@ class FidRequiredFieldRule(BaseRule):
 
             #required_fields =
             for field in FID_REQUIRED_FIELDS[device]:
+                field_upper = field.upper()
+                if field_upper in _VENDOR_TYPE_FIELDS and not _should_validate_vendor_type(request_data, device):
+                    continue
                 if _is_cs_required_field(field) and _skip_cs_validation(request_data):
                     continue
-                if _is_type_vendor_required_field(field) and _skip_type_vendor_validation(request_data):
-                    continue
-                if field.upper().startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
+                if field_upper.startswith(('CHEMICALNAME', 'GASNAME')) and request_data['fab']['name'].endswith(('1','2', '3')):
                     continue
                                                                                                                      
 
@@ -216,18 +215,6 @@ class FidRequiredFieldRule(BaseRule):
                         #print(f'43 {field}')
                 #print(f"{field_keys=}")
                 #continue
-
-                # TYPE / VENDOR：无属性 tag 报「关键属性缺失」；有键但值为空或 None 报「必填项缺失」
-                if _is_type_vendor_required_field(field):
-                    if len(field_keys) == 0:
-                        critical_patterns_missing.append(field)
-                    else:
-                        for _key in field_keys:
-                            value = eq.get(_key)
-                            value = value.strip() if isinstance(value, str) else value
-                            if value is None or value == "":
-                                empty.append(_key)
-                    continue
 
                 for _key in field_keys:
                     #value = getattr(eq, _key.lower(), None)

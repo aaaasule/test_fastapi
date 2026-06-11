@@ -10,13 +10,70 @@ sys.path.insert(0, str(project_root))
 from app.fid.validators.base_rules import FIDBaseRule
 from app.fid.models import CheckResult
 from app.fid.utils.parse_block_attributes import parse_block_attributes
-from app.fid.validators.fid_rules.fid_required_field import _skip_cs_validation, _should_validate_pc_io_change
+from app.fid.validators.fid_rules.fid_required_field import (
+    _skip_cs_validation,
+    _should_validate_pc_io_change,
+    _should_validate_vendor_type,
+)
 import pandas as pd
 import json
+import math
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
 pd.set_option('display.expand_frame_repr', False)
+
+
+def _clean_compare_val(val) -> str:
+    if val is None:
+        return ''
+    if isinstance(val, float) and math.isnan(val):
+        return ''
+    return str(val).strip()
+
+
+def _eq_dxf_attr(eq: Dict[str, Any], attr: str) -> str:
+    attr_upper = attr.upper()
+    for key, val in eq.items():
+        if str(key).upper() == attr_upper:
+            return _clean_compare_val(val)
+    return ''
+
+
+def _build_field_lookup_dicts(field_pd: pd.DataFrame):
+    """按 FIELD.uni_code / FIELD.cad_block_id 构建 field 历史查找表。"""
+    if field_pd.empty:
+        return {}, {}
+
+    by_uni_code = {}
+    if 'FIELD.uni_code' in field_pd.columns:
+        dedup = field_pd.drop_duplicates(subset=['FIELD.uni_code'], keep='last')
+        by_uni_code = dedup.set_index('FIELD.uni_code').to_dict(orient='index')
+
+    by_cad_block_id = {}
+    if 'FIELD.cad_block_id' in field_pd.columns:
+        dedup = field_pd.drop_duplicates(subset=['FIELD.cad_block_id'], keep='last')
+        by_cad_block_id = dedup.set_index('FIELD.cad_block_id').to_dict(orient='index')
+
+    return by_uni_code, by_cad_block_id
+
+
+def _resolve_field_record(
+    equipments_info: list,
+    eq: Dict[str, Any],
+    field_lookup_dict: dict,
+    field_lookup_by_cad: dict,
+):
+    field_code = (equipments_info[0].get('field_code') or '').strip() if equipments_info else ''
+    if field_code:
+        rec = field_lookup_dict.get(field_code)
+        if rec is not None:
+            return rec
+
+    cad_block_id = eq.get('CAD_BLOCK_ID') or eq.get('cad_block_id')
+    if cad_block_id is not None and str(cad_block_id).strip() != '':
+        return field_lookup_by_cad.get(str(cad_block_id).strip())
+    return None
 
 
 class BlockAttributeCheck(FIDBaseRule):
@@ -30,9 +87,9 @@ class BlockAttributeCheck(FIDBaseRule):
         'TAKEOFF': ['CS', 'CT', 'FLOW_UNIT', 'DESIGN_FLOW'],
         'VMB_CHEMICAL': ["CT.", "CS.", "ID.", "DESIGN_FLOW", 'FLOW_UNIT'],
         'VMB_GASNAME': ["CT.", "CS.", "ID.", "DESIGN_FLOW", 'FLOW_UNIT'],
-        'I_LINE': ["ID."],
-        'GPB': ["ID.", "CS."],
-        'NEW_INTER_': ["CS"],
+        'I_LINE': ["ID.", "TYPE", "VENDOR"],
+        'GPB': ["ID.", "CS.", "TYPE", "VENDOR"],
+        'NEW_INTER_': ["CS", "TYPE", "VENDOR"],
     }
 
     def check(self, equipments: Dict[str, List[Dict[str, Any]]], device=None, request_data=None) -> List[CheckResult]:
@@ -108,9 +165,12 @@ class BlockAttributeCheck(FIDBaseRule):
             lookup_dict = {}
             print(f"[INFO] 数据为空，字典大小为 0")
 
+        field_lookup_dict, field_lookup_by_cad = _build_field_lookup_dicts(field_pd)
+
         df_prep_end = time.time()
         print(f"[PERF] DataFrame 准备与字典构建耗时：{(df_prep_end - df_prep_start) * 1000:.2f} ms")
         print(f"[INFO] 字典大小：{len(lookup_dict)} 条记录")
+        print(f"[INFO] Field 字典大小：{len(field_lookup_dict)} 条记录")
 
         # 确定描述
         if device == 'TAKEOFF':
@@ -145,6 +205,40 @@ class BlockAttributeCheck(FIDBaseRule):
                 equipments_info = []
             #log_time(f"Eq[{idx}] parse_block_attributes", parse_start)
 
+            if _should_validate_vendor_type(request_data, device) and equipments_info:
+                field_rec = _resolve_field_record(
+                    equipments_info, eq, field_lookup_dict, field_lookup_by_cad,
+                )
+                if field_rec is not None:
+                    vendor_type_changes = []
+                    vendor_type_desc = []
+                    vendor_type_detail = ''
+                    for hist_key, cad_attr, label in (
+                        ('vendor', 'VENDOR', 'vendor'),
+                        ('type', 'TYPE', 'type'),
+                    ):
+                        hist_val = _clean_compare_val(field_rec.get(f'FIELD.{hist_key}', ''))
+                        cad_val = _eq_dxf_attr(eq, cad_attr)
+                        if (hist_val or cad_val) and hist_val != cad_val:
+                            vendor_type_changes.append(label)
+                            vendor_type_desc.append(f"{label}({hist_val},{cad_val})")
+                            vendor_type_detail += f"{label} 修改 ({hist_val}) -> ({cad_val})\n"
+
+                    if vendor_type_changes:
+                        results.append(CheckResult(
+                            type=self.rule_type,
+                            name="图块属性修改",
+                            description=description + ' '.join(vendor_type_desc),
+                            detail={
+                                'summary': description + vendor_type_detail,
+                                'diff_items': vendor_type_desc,
+                            },
+                            equipment=[eq],
+                            operation='update',
+                            field_or_interface='field',
+                            device=device,
+                        ))
+
             for info_idx, info in enumerate(equipments_info):
                 inner_step_start = time.time()
                 modify_cache = []
@@ -173,19 +267,12 @@ class BlockAttributeCheck(FIDBaseRule):
                     vmb_type = target_dict.get('FIELD.vmb_type', '')
                     in_out_code = target_dict.get('INTERFACE.in_out_code', '')
 
-                    # NaN 处理 (字典取值可能直接是 np.nan，需要转换)
-                    import math
-                    def clean_val(val):
-                        if val is None: return ''
-                        if isinstance(val, float) and math.isnan(val): return ''
-                        return str(val)
-
-                    cs = clean_val(cs)
-                    ct = clean_val(ct)
-                    flow_unit = clean_val(flow_unit)
-                    design_flow = clean_val(design_flow)
-                    vmb_type = clean_val(vmb_type)
-                    in_out_code = clean_val(in_out_code)
+                    cs = _clean_compare_val(cs)
+                    ct = _clean_compare_val(ct)
+                    flow_unit = _clean_compare_val(flow_unit)
+                    design_flow = _clean_compare_val(design_flow)
+                    vmb_type = _clean_compare_val(vmb_type)
+                    in_out_code = _clean_compare_val(in_out_code)
 
                     # --- 比对逻辑 ---
                     if device == 'TAKEOFF':
@@ -228,7 +315,7 @@ class BlockAttributeCheck(FIDBaseRule):
                             desc_changes.append(f"vmb-type({vmb_type},{str(info['vmb-type'])})") # 【修改】
                             field_detail += f"vmb_type 修改 ({vmb_type}) -> ({info['vmb-type']})\n"
                         if check_pc_io:
-                            cad_io = clean_val(info.get('I/O', ''))
+                            cad_io = _clean_compare_val(info.get('I/O', ''))
                             if (in_out_code or cad_io) and in_out_code != cad_io:
                                 modify_cache.append('I/O')
                                 desc_changes.append(f"I/O({in_out_code},{cad_io})")
@@ -242,7 +329,7 @@ class BlockAttributeCheck(FIDBaseRule):
                             desc_changes.append(f"cs({cs},{str(info['connection_size'])})") # 【修改】
                             interface_detail += f"CS 修改 ({cs}) -> ({info['connection_size']})\n"
                         if check_pc_io:
-                            cad_io = clean_val(info.get('I/O', ''))
+                            cad_io = _clean_compare_val(info.get('I/O', ''))
                             if (in_out_code or cad_io) and in_out_code != cad_io:
                                 modify_cache.append('I/O')
                                 desc_changes.append(f"I/O({in_out_code},{cad_io})")
